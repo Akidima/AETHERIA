@@ -1,0 +1,33 @@
+{
+  "name": "Aetheria - Digital Sentience",
+  "short_name": "Aetheria",
+  "description": "Transform your emotions into living digital art. Powered by AI, visualized through WebGL.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["art", "entertainment", "lifestyle"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "New Emotion",
+      "url": "/",
+      "description": "Express a new emotion"
+    }
+  ]
+}
