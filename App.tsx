@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Loader2, X, Mic, MicOff, Download, Share2, Maximize, History, Sparkles, LogIn, Grid, Settings, Wind, Clock, Sliders, Calendar, BarChart3, Users, Bookmark, Video, Code, Heart, Music, Accessibility, HelpCircle, Smartphone, Radio } from 'lucide-react';
+import { ArrowRight, Loader2, X, Mic, MicOff, Download, Share2, Maximize, History, Sparkles, LogIn, Grid, Settings, Wind, Clock, Sliders, Calendar, BarChart3, Users, Bookmark, Video, Code, Heart, Music, Accessibility, HelpCircle, Smartphone, Radio, BookOpen, Trophy, Waves, Crown } from 'lucide-react';
 import { CustomCursor } from './components/CustomCursor';
 import { Scene } from './components/Scene';
 import { Navigation } from './components/Navigation';
@@ -22,9 +22,14 @@ import { MusicReactive } from './components/MusicReactive';
 import { AccessibilitySettings } from './components/AccessibilitySettings';
 import { ARMode } from './components/ARMode';
 import { CollabRoom } from './components/CollabRoom';
+import { Journal } from './components/Journal';
+import { GamificationHub, AchievementToast } from './components/GamificationHub';
+import { BreathingExercises } from './components/BreathingExercises';
+import { CommunityLeaderboard } from './components/CommunityLeaderboard';
 import { interpretSentiment } from './services/aiService';
 import { audioService } from './services/audioService';
 import { VisualParams, AppState, VisualMode, CustomPreset, AccessibilitySettings as A11ySettings } from './types';
+import { useAuthStore, useGamificationStore } from './store/useStore';
 import {
   useHistory,
   useSettings,
@@ -47,7 +52,8 @@ const INITIAL_PARAMS: VisualParams = {
   speed: 0.5,
   distort: 0.3,
   phrase: "Waiting for Input",
-  explanation: "Share your thoughts to shape the digital matter."
+  explanation: "Share your thoughts to shape the digital matter.",
+  advice: "Express yourself freely. Your emotions are valid and worth exploring."
 };
 
 const App: React.FC = () => {
@@ -58,8 +64,11 @@ const App: React.FC = () => {
   const [showControls, setShowControls] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auth/UI state (local state to avoid store dependency issues)
-  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+  // Auth state from store
+  const user = useAuthStore((state) => state.user);
+  const setUser = useAuthStore((state) => state.setUser);
+  
+  // UI state
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const [isShareModalOpen, setShareModalOpen] = useState(false);
   const [isGalleryOpen, setGalleryOpen] = useState(false);
@@ -81,6 +90,10 @@ const App: React.FC = () => {
   const [isAccessibilityOpen, setAccessibilityOpen] = useState(false);
   const [isARModeOpen, setARModeOpen] = useState(false);
   const [isCollabRoomOpen, setCollabRoomOpen] = useState(false);
+  const [isJournalOpen, setJournalOpen] = useState(false);
+  const [isGamificationOpen, setGamificationOpen] = useState(false);
+  const [isBreathingOpen, setBreathingOpen] = useState(false);
+  const [isLeaderboardOpen, setLeaderboardOpen] = useState(false);
   
   // Accessibility settings
   const [a11ySettings, setA11ySettings] = useState<A11ySettings>({
@@ -95,6 +108,20 @@ const App: React.FC = () => {
   const { settings, updateSettings } = useSettings();
   const { checkIns, streak, todayCompleted, addCheckIn } = useCheckIns();
   const { showOnboarding, completeOnboarding } = useOnboarding();
+
+  // Gamification
+  const {
+    recordVisualization,
+    recordCheckIn,
+    refreshChallenges,
+    newAchievements,
+    clearNewAchievements,
+  } = useGamificationStore();
+
+  // Refresh challenges on mount
+  useEffect(() => {
+    refreshChallenges();
+  }, [refreshChallenges]);
 
   // Listen for auth state changes (lazy load supabase)
   useEffect(() => {
@@ -111,13 +138,21 @@ const App: React.FC = () => {
         // Get initial session
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          setUser({ id: session.user.id, email: session.user.email });
+          setUser({ 
+            id: session.user.id, 
+            email: session.user.email,
+            user_metadata: session.user.user_metadata || {}
+          });
         }
 
         // Listen for changes
         const { data } = supabase.auth.onAuthStateChange((_event, session) => {
           if (session?.user) {
-            setUser({ id: session.user.id, email: session.user.email });
+            setUser({ 
+              id: session.user.id, 
+              email: session.user.email,
+              user_metadata: session.user.user_metadata || {}
+            });
           } else {
             setUser(null);
           }
@@ -182,6 +217,7 @@ const App: React.FC = () => {
     onToggleFullscreen: toggleFullscreen,
     onReset: handleReset,
     onSubmit: () => inputRef.current?.form?.requestSubmit(),
+    onScreenshot: () => download(`aetheria-${Date.now()}.png`),
     isInputFocused: document.activeElement === inputRef.current,
   });
 
@@ -223,12 +259,22 @@ const App: React.FC = () => {
         result = blendParams(results);
         result.phrase = results.map(r => r.phrase.split(' ')[0]).join(' × ');
         result.explanation = `A fusion of ${emotions.join(' and ')}.`;
+        // Use the first emotion's advice or create a blended one
+        result.advice = results[0].advice || 'Multiple emotions create unique experiences. Honor each feeling.';
       } else {
         result = await interpretSentiment(currentInput);
       }
       
+      // Ensure all required fields are present
+      if (!result.phrase || !result.explanation) {
+        console.error('Invalid response from AI:', result);
+        throw new Error('Invalid response format');
+      }
+      
+      console.log('AI Response:', result);
       setParams(result);
       addEntry(currentInput, result);
+      recordVisualization();
       setAppState(AppState.IDLE);
       
       // Start/update audio
@@ -236,7 +282,23 @@ const App: React.FC = () => {
         audioService.start(result.color, result.speed, result.distort);
       }
     } catch (error) {
+      console.error('Interpretation error:', error);
       setAppState(AppState.ERROR);
+      
+      // Show error state with helpful message
+      setParams({
+        color: "#cc3333",
+        speed: 1.2,
+        distort: 0.8,
+        phrase: "Connection Lost",
+        explanation: "Unable to interpret your emotion right now.",
+        advice: "Please check your internet connection and API key configuration, then try again."
+      });
+      
+      // Reset to idle after showing error
+      setTimeout(() => {
+        setAppState(AppState.IDLE);
+      }, 3000);
     }
     
     inputRef.current?.focus();
@@ -302,7 +364,7 @@ const App: React.FC = () => {
       <CustomCursor />
       
       {/* Auth/User Section - Top Right */}
-      <div className="fixed top-8 right-20 md:right-32 z-50 flex items-center gap-4">
+      <div className="fixed top-8 right-8 md:right-12 z-[110] flex items-center gap-4">
         {user ? (
           <React.Suspense fallback={<div className="w-10 h-10 rounded-full bg-white/10 animate-pulse" />}>
             <UserMenu 
@@ -329,7 +391,9 @@ const App: React.FC = () => {
           if (settings.soundEnabled) {
             audioService.start(p.color, p.speed, p.distort);
           }
-        }} 
+        }}
+        onOpenJournal={() => setJournalOpen(true)}
+        onOpenGamification={() => setGamificationOpen(true)}
       />
       
       {/* 3D Background */}
@@ -354,7 +418,7 @@ const App: React.FC = () => {
               initial={{ opacity: 0, scale: 0.9, y: -10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: -10 }}
-              className="flex flex-col gap-2"
+              className="flex flex-col gap-2 max-h-[calc(100vh-120px)] overflow-y-auto"
             >
               {/* Fullscreen */}
               <button
@@ -367,9 +431,9 @@ const App: React.FC = () => {
 
               {/* Download Screenshot */}
               <button
-                onClick={() => download()}
+                onClick={() => download(`aetheria-${Date.now()}.png`)}
                 className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
-                title="Download Screenshot"
+                title="Download Screenshot [S]"
               >
                 <Download className="w-4 h-4" />
               </button>
@@ -426,6 +490,15 @@ const App: React.FC = () => {
                 title="Guided Meditation"
               >
                 <Wind className="w-4 h-4" />
+              </button>
+
+              {/* Breathing Exercises */}
+              <button
+                onClick={() => setBreathingOpen(true)}
+                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                title="Breathing & Grounding"
+              >
+                <Waves className="w-4 h-4" />
               </button>
 
               {/* Settings */}
@@ -538,6 +611,33 @@ const App: React.FC = () => {
               >
                 <Radio className="w-4 h-4" />
               </button>
+
+              {/* Journal */}
+              <button
+                onClick={() => setJournalOpen(true)}
+                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                title="Journal"
+              >
+                <BookOpen className="w-4 h-4" />
+              </button>
+
+              {/* Gamification Hub */}
+              <button
+                onClick={() => setGamificationOpen(true)}
+                className="p-2 rounded-full border border-white/10 hover:border-yellow-500/40 bg-black/50 backdrop-blur-sm transition-colors"
+                title="Achievements & Progress"
+              >
+                <Trophy className="w-4 h-4" />
+              </button>
+
+              {/* Community Leaderboard */}
+              <button
+                onClick={() => setLeaderboardOpen(true)}
+                className="p-2 rounded-full border border-white/10 hover:border-amber-500/40 bg-black/50 backdrop-blur-sm transition-colors"
+                title="Community Leaderboard"
+              >
+                <Crown className="w-4 h-4" />
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -611,16 +711,31 @@ const App: React.FC = () => {
           {/* Dynamic Phrase Heading */}
           <div className="h-32 md:h-48 flex items-center justify-center overflow-visible mb-8">
              <AnimatePresence mode="wait">
-               <motion.h1 
-                  key={params.phrase}
-                  initial={{ opacity: 0, y: 100, rotate: 5 }}
-                  animate={{ opacity: 1, y: 0, rotate: 0 }}
-                  exit={{ opacity: 0, y: -100, rotate: -5 }}
-                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                  className="font-display text-5xl md:text-8xl lg:text-9xl font-bold uppercase tracking-tighter leading-none"
-               >
-                 {params.phrase}
-               </motion.h1>
+               {appState === AppState.THINKING ? (
+                 <motion.div
+                   key="thinking"
+                   initial={{ opacity: 0, scale: 0.9 }}
+                   animate={{ opacity: 1, scale: 1 }}
+                   exit={{ opacity: 0, scale: 0.9 }}
+                   className="flex flex-col items-center gap-4"
+                 >
+                   <Loader2 className="w-12 h-12 animate-spin text-white/40" />
+                   <h1 className="font-display text-3xl md:text-5xl font-bold uppercase tracking-tighter text-white/60">
+                     Interpreting...
+                   </h1>
+                 </motion.div>
+               ) : (
+                 <motion.h1 
+                    key={params.phrase}
+                    initial={{ opacity: 0, y: 100, rotate: 5 }}
+                    animate={{ opacity: 1, y: 0, rotate: 0 }}
+                    exit={{ opacity: 0, y: -100, rotate: -5 }}
+                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                    className="font-display text-5xl md:text-8xl lg:text-9xl font-bold uppercase tracking-tighter leading-none"
+                 >
+                   {params.phrase}
+                 </motion.h1>
+               )}
              </AnimatePresence>
           </div>
 
@@ -832,7 +947,10 @@ const App: React.FC = () => {
       <DailyCheckIn
         isOpen={isCheckInOpen}
         onClose={() => setCheckInOpen(false)}
-        onComplete={addCheckIn}
+        onComplete={(checkIn) => {
+          addCheckIn(checkIn);
+          recordCheckIn(checkIn.emotions, streak + 1);
+        }}
         onVisualize={(p) => {
           setParams(p);
           if (settings.soundEnabled) {
@@ -959,6 +1077,47 @@ const App: React.FC = () => {
             audioService.start(p.color, p.speed, p.distort);
           }
         }}
+      />
+
+      {/* Journal */}
+      <Journal
+        isOpen={isJournalOpen}
+        onClose={() => setJournalOpen(false)}
+        currentParams={params}
+        currentInput={input}
+        onLoadVisualization={(p) => {
+          setParams(p);
+          if (settings.soundEnabled) {
+            audioService.start(p.color, p.speed, p.distort);
+          }
+        }}
+      />
+
+      {/* Gamification Hub */}
+      <GamificationHub
+        isOpen={isGamificationOpen}
+        onClose={() => setGamificationOpen(false)}
+      />
+
+      {/* Breathing Exercises */}
+      <BreathingExercises
+        isOpen={isBreathingOpen}
+        onClose={() => setBreathingOpen(false)}
+        onParamsChange={setParams}
+        soundEnabled={settings.soundEnabled}
+        onToggleSound={toggleSound}
+      />
+
+      {/* Community Leaderboard */}
+      <CommunityLeaderboard
+        isOpen={isLeaderboardOpen}
+        onClose={() => setLeaderboardOpen(false)}
+      />
+
+      {/* Achievement Notifications */}
+      <AchievementToast
+        achievementIds={newAchievements}
+        onDismiss={clearNewAchievements}
       />
 
       {/* Onboarding Tour */}

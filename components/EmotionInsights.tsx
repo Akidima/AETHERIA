@@ -2,7 +2,8 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, TrendingUp, TrendingDown, Minus, Flame, Calendar, BarChart3, PieChart } from 'lucide-react';
-import { DailyCheckIn, EmotionInsights as InsightsType, EMOTION_CATEGORIES, MOOD_EMOJIS } from '../types';
+import { DailyCheckIn, EmotionInsights as InsightsType, EMOTION_CATEGORIES, MOOD_EMOJIS, ACHIEVEMENTS } from '../types';
+import { useGamificationStore } from '../store/useStore';
 
 interface EmotionInsightsProps {
   isOpen: boolean;
@@ -12,6 +13,40 @@ interface EmotionInsightsProps {
 }
 
 type Period = 'week' | 'month' | 'year';
+
+const TIER_BADGE_COLORS: Record<string, string> = {
+  bronze: 'bg-amber-900/20 text-amber-500',
+  silver: 'bg-gray-400/15 text-gray-300',
+  gold: 'bg-yellow-500/15 text-yellow-400',
+  platinum: 'bg-cyan-400/15 text-cyan-300',
+};
+
+const AchievementsSection: React.FC = () => {
+  const progress = useGamificationStore((s) => s.progress);
+  const unlocked = ACHIEVEMENTS.filter(a => progress.unlockedAchievements.includes(a.id));
+
+  return (
+    <div className="p-4 bg-white/5 rounded-xl">
+      <h3 className="text-sm font-mono uppercase tracking-widest opacity-60 mb-4">
+        Achievements ({unlocked.length}/{ACHIEVEMENTS.length})
+      </h3>
+      <div className="flex flex-wrap gap-2">
+        {unlocked.length === 0 ? (
+          <span className="text-sm text-white/30">Complete check-ins and activities to earn achievements</span>
+        ) : (
+          unlocked.map(a => (
+            <span
+              key={a.id}
+              className={`px-3 py-1 rounded-full text-sm ${TIER_BADGE_COLORS[a.tier] || 'bg-white/10 text-white/70'}`}
+            >
+              {a.icon} {a.title}
+            </span>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
 
 export const EmotionInsights: React.FC<EmotionInsightsProps> = ({
   isOpen,
@@ -295,36 +330,7 @@ export const EmotionInsights: React.FC<EmotionInsightsProps> = ({
                 )}
 
                 {/* Achievements */}
-                <div className="p-4 bg-white/5 rounded-xl">
-                  <h3 className="text-sm font-mono uppercase tracking-widest opacity-60 mb-4">Achievements</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {insights.streakDays >= 3 && (
-                      <span className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-sm">
-                        🔥 3+ Day Streak
-                      </span>
-                    )}
-                    {insights.streakDays >= 7 && (
-                      <span className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-sm">
-                        🔥 Week Warrior
-                      </span>
-                    )}
-                    {insights.totalCheckIns >= 10 && (
-                      <span className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm">
-                        ✨ 10+ Check-ins
-                      </span>
-                    )}
-                    {insights.averageMood >= 4 && (
-                      <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm">
-                        😊 Positive Vibes
-                      </span>
-                    )}
-                    {insights.longestStreak >= 14 && (
-                      <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-sm">
-                        🏆 Two Week Champion
-                      </span>
-                    )}
-                  </div>
-                </div>
+                <AchievementsSection />
               </div>
             )}
           </motion.div>

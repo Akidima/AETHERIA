@@ -16,9 +16,9 @@ const MISSING_KEY_RESPONSE: VisualParams = {
 export const interpretSentiment = async (input: string): Promise<VisualParams> => {
   const apiKey = import.meta.env.VITE_GROQ_API_KEY as string | undefined;
   
-  if (!apiKey || apiKey === 'your_groq_api_key_here') {
-    console.warn("Groq API key not configured. Using missing-key message.");
-    return MISSING_KEY_RESPONSE;
+  if (!apiKey || apiKey === 'your-groq-api-key' || apiKey.length < 20) {
+    console.warn("Groq API key not configured. Using fallback response.");
+    return getFallbackResponse(input);
   }
 
   try {
@@ -59,6 +59,8 @@ Respond with only the JSON object, no other text.`
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Groq API error: ${response.status}`, errorText);
       throw new Error(`Groq API error: ${response.status}`);
     }
 
@@ -66,7 +68,9 @@ Respond with only the JSON object, no other text.`
     const content = data.choices?.[0]?.message?.content;
     
     if (content) {
-      return JSON.parse(content) as VisualParams;
+      const parsed = JSON.parse(content) as VisualParams;
+      console.log('AI interpretation successful:', parsed);
+      return parsed;
     }
     throw new Error("No response content from Groq");
   } catch (error) {

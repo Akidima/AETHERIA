@@ -5,6 +5,7 @@ import { User, LogOut, History, Settings, Cloud } from 'lucide-react';
 import { signOut } from '../lib/supabase';
 import { useAuthStore, useHistoryStore } from '../store/useStore';
 import { analytics } from '../services/analyticsService';
+import { ProfileModal } from './Profile';
 
 interface UserMenuProps {
   onOpenHistory: () => void;
@@ -13,6 +14,7 @@ interface UserMenuProps {
 
 export const UserMenu: React.FC<UserMenuProps> = ({ onOpenHistory, onOpenSettings }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clear);
@@ -127,6 +129,17 @@ export const UserMenu: React.FC<UserMenuProps> = ({ onOpenHistory, onOpenSetting
                 </button>
               )}
 
+              <button
+                onClick={() => {
+                  setIsProfileOpen(true);
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-left"
+              >
+                <User className="w-4 h-4 text-white/60" />
+                <span>Profile</span>
+              </button>
+
               <div className="h-px bg-white/10 my-2" />
 
               <button
@@ -140,6 +153,8 @@ export const UserMenu: React.FC<UserMenuProps> = ({ onOpenHistory, onOpenSetting
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
     </div>
   );
 };

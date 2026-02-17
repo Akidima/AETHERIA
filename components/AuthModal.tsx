@@ -17,6 +17,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleOAuth = async (provider: 'google' | 'github') => {
     setIsLoading(true);
@@ -43,16 +44,41 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
       const authFn = mode === 'login' ? signInWithEmail : signUpWithEmail;
-      const { error } = await authFn(email, password);
+      const { data, error } = await authFn(email, password);
 
       if (error) {
-        setError(error.message);
+        // Handle specific error cases
+        if (error.message.includes('Email not confirmed')) {
+          setError('Please check your email and click the confirmation link before signing in.');
+        } else if (error.message.includes('Invalid login credentials')) {
+          setError('Invalid email or password. Please try again.');
+        } else {
+          setError(error.message);
+        }
       } else {
         analytics.trackAuth(mode === 'login' ? 'login' : 'signup', 'email');
-        onClose();
+        
+        if (mode === 'signup') {
+          // Check if user needs to confirm email
+          if (data.user && !data.user.email_confirmed_at && data.user.confirmation_sent_at) {
+            setSuccessMessage('Account created! Please check your email to confirm your account.');
+            // Don't close modal, let user see the message
+            setEmail('');
+            setPassword('');
+            setMode('login');
+          } else {
+            // Auto-confirmed or instant signup
+            setSuccessMessage('Account created successfully!');
+            setTimeout(() => onClose(), 1500);
+          }
+        } else {
+          // Login successful
+          onClose();
+        }
       }
     } catch (e) {
       setError('Authentication failed. Please try again.');
@@ -152,6 +178,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
                 {error && (
                   <p className="text-sm text-red-400">{error}</p>
+                )}
+                
+                {successMessage && (
+                  <p className="text-sm text-green-400">{successMessage}</p>
                 )}
 
                 <button

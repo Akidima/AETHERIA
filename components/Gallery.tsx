@@ -32,8 +32,18 @@ export const Gallery: React.FC<GalleryProps> = ({ isOpen, onClose, onSelect }) =
     try {
       const result = await getGallery(sort, 20, 0);
       setItems(result.items);
-    } catch (e) {
-      setError('Failed to load gallery');
+    } catch (e: any) {
+      console.error('Gallery error:', e);
+      const errorMessage = e?.message || 'Failed to load gallery';
+      
+      // Check if it's a database/table error
+      if (errorMessage.includes('relation') || errorMessage.includes('does not exist')) {
+        setError('Gallery not set up yet. Please run the database schema.');
+      } else if (errorMessage.includes('not configured')) {
+        setError('Database not configured. Please check your Supabase settings.');
+      } else {
+        setError('Failed to load gallery. Try again later.');
+      }
     } finally {
       setIsLoading(false);
     }

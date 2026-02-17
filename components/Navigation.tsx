@@ -3,14 +3,18 @@ import { Menu, X, ArrowUpRight, ArrowLeft, Github, Twitter, Linkedin, Sparkles, 
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { VisualParams } from '../types';
 
-type SectionType = 'menu' | 'manifesto' | 'archive' | 'credits' | null;
+type SectionType = 'menu' | 'manifesto' | 'archive' | 'credits' | 'journal' | 'gamification' | null;
 
 interface NavigationProps {
   onLoadParams?: (params: VisualParams) => void;
+  onOpenJournal?: () => void;
+  onOpenGamification?: () => void;
 }
 
 const NAV_ITEMS: { label: string; section: SectionType }[] = [
   { label: 'Experience', section: null },
+  { label: 'Journal', section: 'journal' },
+  { label: 'Progress', section: 'gamification' },
   { label: 'Manifesto', section: 'manifesto' },
   { label: 'Archive', section: 'archive' },
   { label: 'Credits', section: 'credits' },
@@ -48,7 +52,7 @@ const CREDITS_DATA = [
   { category: 'Typography', items: ['Syne', 'Inter'] },
 ];
 
-export const Navigation: React.FC<NavigationProps> = ({ onLoadParams }) => {
+export const Navigation: React.FC<NavigationProps> = ({ onLoadParams, onOpenJournal, onOpenGamification }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<SectionType>('menu');
 
@@ -57,6 +61,16 @@ export const Navigation: React.FC<NavigationProps> = ({ onLoadParams }) => {
       // Experience = close menu and return to main
       setIsOpen(false);
       setActiveSection('menu');
+    } else if (section === 'journal') {
+      // Journal = close menu and open journal modal
+      setIsOpen(false);
+      setActiveSection('menu');
+      onOpenJournal?.();
+    } else if (section === 'gamification') {
+      // Gamification = close menu and open gamification hub
+      setIsOpen(false);
+      setActiveSection('menu');
+      onOpenGamification?.();
     } else {
       setActiveSection(section);
     }
@@ -135,7 +149,7 @@ export const Navigation: React.FC<NavigationProps> = ({ onLoadParams }) => {
               setActiveSection('menu');
             }
           }}
-          className="pointer-events-auto cursor-pointer group flex items-center gap-3"
+          className="pointer-events-auto cursor-pointer group flex items-center gap-3 mr-12 md:mr-20"
         >
           <div className="hidden md:block overflow-hidden h-4">
             <motion.span 

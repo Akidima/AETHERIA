@@ -340,7 +340,8 @@ export const Scene: React.FC<SceneProps> = ({ params, visualMode = 'sphere' }) =
         gl={{ 
           antialias: true, 
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.2
+          toneMappingExposure: 1.2,
+          preserveDrawingBuffer: true // Required for screenshots/video export
         }}
       >
         <color attach="background" args={[theme.background]} />

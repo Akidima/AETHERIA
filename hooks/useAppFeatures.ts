@@ -65,6 +65,7 @@ export function useSettings() {
     soundEnabled: false,
     visualMode: 'sphere',
     ambientMode: false,
+    theme: 'dark',
   });
 
   // Load settings on mount
@@ -103,6 +104,7 @@ interface KeyboardShortcutsOptions {
   onToggleFullscreen: () => void;
   onReset: () => void;
   onSubmit: () => void;
+  onScreenshot?: () => void;
   isInputFocused: boolean;
 }
 
@@ -111,6 +113,7 @@ export function useKeyboardShortcuts({
   onToggleFullscreen,
   onReset,
   onSubmit,
+  onScreenshot,
   isInputFocused,
 }: KeyboardShortcutsOptions) {
   useEffect(() => {
@@ -132,6 +135,12 @@ export function useKeyboardShortcuts({
             onToggleFullscreen();
           }
           break;
+        case 's':
+          if (!isTyping && onScreenshot) {
+            e.preventDefault();
+            onScreenshot();
+          }
+          break;
         case 'escape':
           e.preventDefault();
           onReset();
@@ -147,7 +156,7 @@ export function useKeyboardShortcuts({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onToggleSound, onToggleFullscreen, onReset, onSubmit, isInputFocused]);
+  }, [onToggleSound, onToggleFullscreen, onReset, onSubmit, onScreenshot, isInputFocused]);
 }
 
 // ============================================
@@ -283,11 +292,24 @@ export function useScreenshot() {
   const capture = useCallback(async (): Promise<string | null> => {
     try {
       // Find the Three.js canvas
-      const canvas = document.querySelector('canvas');
-      if (!canvas) return null;
+      const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+      if (!canvas) {
+        console.error('Canvas not found');
+        return null;
+      }
 
-      // Get data URL
-      const dataUrl = canvas.toDataURL('image/png');
+      // Wait for next animation frame to ensure render is complete
+      await new Promise(resolve => requestAnimationFrame(resolve));
+
+      // Get data URL with maximum quality
+      const dataUrl = canvas.toDataURL('image/png', 1.0);
+      
+      // Verify we got actual data (not a blank canvas)
+      if (dataUrl === 'data:,') {
+        console.error('Canvas is blank or security error');
+        return null;
+      }
+      
       return dataUrl;
     } catch (e) {
       console.error('Screenshot failed:', e);
@@ -297,12 +319,23 @@ export function useScreenshot() {
 
   const download = useCallback(async (filename = 'aetheria-emotion.png') => {
     const dataUrl = await capture();
-    if (!dataUrl) return;
+    if (!dataUrl) {
+      console.error('Failed to capture screenshot');
+      alert('Failed to capture screenshot. Please try again.');
+      return;
+    }
 
     const link = document.createElement('a');
     link.download = filename;
     link.href = dataUrl;
+    document.body.appendChild(link); // Ensure link is in DOM
     link.click();
+    document.body.removeChild(link); // Clean up
+    
+    // Revoke object URL after a delay
+    setTimeout(() => {
+      URL.revokeObjectURL(dataUrl);
+    }, 100);
   }, [capture]);
 
   const share = useCallback(async (title: string, text: string) => {

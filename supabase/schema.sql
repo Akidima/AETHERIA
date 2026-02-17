@@ -172,7 +172,7 @@ CREATE POLICY "Users can insert own settings"
 -- ============================================
 
 -- Function to update the updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at()
+CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
@@ -185,7 +185,7 @@ DROP TRIGGER IF EXISTS update_user_settings_updated_at ON user_settings;
 CREATE TRIGGER update_user_settings_updated_at
   BEFORE UPDATE ON user_settings
   FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at();
+  EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
 -- USER PROFILES TABLE
@@ -226,7 +226,7 @@ DROP TRIGGER IF EXISTS update_user_profiles_updated_at ON user_profiles;
 CREATE TRIGGER update_user_profiles_updated_at
   BEFORE UPDATE ON user_profiles
   FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at();
+  EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
 -- VISUALIZATION REACTIONS TABLE
@@ -474,7 +474,7 @@ DROP TRIGGER IF EXISTS update_collections_updated_at ON collections;
 CREATE TRIGGER update_collections_updated_at
   BEFORE UPDATE ON collections
   FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at();
+  EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
 -- COLLECTION ITEMS TABLE
@@ -756,3 +756,162 @@ BEGIN
   RETURN result;
 END;
 $$ LANGUAGE plpgsql;
+
+-- ============================================
+-- JOURNAL ENTRIES TABLE
+-- Rich text journal entries linked to visualizations
+-- ============================================
+CREATE TABLE IF NOT EXISTS journal_entries (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title VARCHAR(200) NOT NULL,
+  blocks JSONB NOT NULL DEFAULT '[]',
+  plain_text TEXT NOT NULL DEFAULT '',
+  tags TEXT[] DEFAULT '{}',
+  custom_tags TEXT[] DEFAULT '{}',
+  detected_emotion VARCHAR(50),
+  prompt_used TEXT,
+  linked_visualization JSONB,
+  mood INTEGER CHECK (mood IS NULL OR (mood >= 1 AND mood <= 5)),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_journal_user_id ON journal_entries(user_id);
+CREATE INDEX IF NOT EXISTS idx_journal_created_at ON journal_entries(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_journal_tags ON journal_entries USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_journal_custom_tags ON journal_entries USING GIN(custom_tags);
+CREATE INDEX IF NOT EXISTS idx_journal_emotion ON journal_entries(detected_emotion);
+CREATE INDEX IF NOT EXISTS idx_journal_plain_text ON journal_entries USING GIN(to_tsvector('english', plain_text));
+
+-- RLS
+ALTER TABLE journal_entries ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own journal entries" ON journal_entries;
+DROP POLICY IF EXISTS "Users can insert own journal entries" ON journal_entries;
+DROP POLICY IF EXISTS "Users can update own journal entries" ON journal_entries;
+DROP POLICY IF EXISTS "Users can delete own journal entries" ON journal_entries;
+
+CREATE POLICY "Users can view own journal entries"
+  ON journal_entries FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own journal entries"
+  ON journal_entries FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own journal entries"
+  ON journal_entries FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own journal entries"
+  ON journal_entries FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_journal_entries_updated_at ON journal_entries;
+CREATE TRIGGER update_journal_entries_updated_at
+  BEFORE UPDATE ON journal_entries
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Function to search journal entries with full-text search
+CREATE OR REPLACE FUNCTION search_journal_entries(
+  user_id_param UUID,
+  search_query TEXT DEFAULT NULL,
+  tag_filter TEXT[] DEFAULT NULL,
+  emotion_filter VARCHAR DEFAULT NULL,
+  date_start TIMESTAMPTZ DEFAULT NULL,
+  date_end TIMESTAMPTZ DEFAULT NULL,
+  sort_by VARCHAR DEFAULT 'newest',
+  result_limit INTEGER DEFAULT 50,
+  result_offset INTEGER DEFAULT 0
+)
+RETURNS TABLE (
+  id UUID,
+  title VARCHAR,
+  blocks JSONB,
+  plain_text TEXT,
+  tags TEXT[],
+  custom_tags TEXT[],
+  detected_emotion VARCHAR,
+  prompt_used TEXT,
+  linked_visualization JSONB,
+  mood INTEGER,
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ,
+  total_count BIGINT
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    je.id, je.title, je.blocks, je.plain_text, je.tags, je.custom_tags,
+    je.detected_emotion, je.prompt_used, je.linked_visualization, je.mood,
+    je.created_at, je.updated_at,
+    COUNT(*) OVER() AS total_count
+  FROM journal_entries je
+  WHERE je.user_id = user_id_param
+    AND (search_query IS NULL OR to_tsvector('english', je.plain_text || ' ' || je.title) @@ plainto_tsquery('english', search_query))
+    AND (tag_filter IS NULL OR je.tags && tag_filter OR je.custom_tags && tag_filter)
+    AND (emotion_filter IS NULL OR je.detected_emotion = emotion_filter)
+    AND (date_start IS NULL OR je.created_at >= date_start)
+    AND (date_end IS NULL OR je.created_at <= date_end)
+  ORDER BY
+    CASE WHEN sort_by = 'oldest' THEN je.created_at END ASC,
+    CASE WHEN sort_by = 'mood-high' THEN je.mood END DESC NULLS LAST,
+    CASE WHEN sort_by = 'mood-low' THEN je.mood END ASC NULLS LAST,
+    CASE WHEN sort_by = 'newest' OR sort_by IS NULL THEN je.created_at END DESC
+  LIMIT result_limit
+  OFFSET result_offset;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================
+-- Gamification Progress Table
+-- ============================================
+CREATE TABLE IF NOT EXISTS gamification_progress (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  xp INTEGER NOT NULL DEFAULT 0,
+  level INTEGER NOT NULL DEFAULT 1,
+  current_streak INTEGER NOT NULL DEFAULT 0,
+  longest_streak INTEGER NOT NULL DEFAULT 0,
+  total_check_ins INTEGER NOT NULL DEFAULT 0,
+  total_journal_entries INTEGER NOT NULL DEFAULT 0,
+  total_visualizations INTEGER NOT NULL DEFAULT 0,
+  total_templates_used INTEGER NOT NULL DEFAULT 0,
+  total_challenges_completed INTEGER NOT NULL DEFAULT 0,
+  unlocked_achievements TEXT[] DEFAULT '{}',
+  unlocked_visualizations TEXT[] DEFAULT '{}',
+  unlocked_themes TEXT[] DEFAULT '{}',
+  emotion_counts JSONB DEFAULT '{}',
+  active_challenges JSONB DEFAULT '[]',
+  last_check_in_date TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT gamification_progress_user_unique UNIQUE (user_id)
+);
+
+-- Index for fast user lookup
+CREATE INDEX IF NOT EXISTS idx_gamification_progress_user_id ON gamification_progress(user_id);
+
+-- RLS policies
+ALTER TABLE gamification_progress ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own gamification progress"
+  ON gamification_progress FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own gamification progress"
+  ON gamification_progress FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own gamification progress"
+  ON gamification_progress FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- Auto-update updated_at timestamp
+CREATE TRIGGER update_gamification_progress_updated_at
+  BEFORE UPDATE ON gamification_progress
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();

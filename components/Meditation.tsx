@@ -46,12 +46,12 @@ export const Meditation: React.FC<MeditationProps> = ({
     if (!isPlaying || !selectedSession) return;
 
     const { breathPattern, guidance: sessionGuidance } = selectedSession;
-    const phases: { phase: BreathPhase; duration: number; guidanceIndex: number }[] = [
-      { phase: 'inhale', duration: breathPattern.inhale, guidanceIndex: 0 },
-      { phase: 'hold', duration: breathPattern.hold, guidanceIndex: 1 },
-      { phase: 'exhale', duration: breathPattern.exhale, guidanceIndex: 2 },
-      { phase: 'holdAfter', duration: breathPattern.holdAfter, guidanceIndex: 3 },
-    ].filter(p => p.duration > 0);
+    const phases: { phase: BreathPhase; duration: number; guidanceIndex: number }[] = ([
+      { phase: 'inhale' as BreathPhase, duration: breathPattern.inhale, guidanceIndex: 0 },
+      { phase: 'hold' as BreathPhase, duration: breathPattern.hold, guidanceIndex: 1 },
+      { phase: 'exhale' as BreathPhase, duration: breathPattern.exhale, guidanceIndex: 2 },
+      { phase: 'holdAfter' as BreathPhase, duration: breathPattern.holdAfter, guidanceIndex: 3 },
+    ]).filter(p => p.duration > 0);
 
     let currentPhaseIndex = 0;
     let currentPhaseTime = 0;

@@ -25,9 +25,14 @@ export async function interpretEmotion(
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      analytics.trackError(error.error || 'Interpretation failed', 'interpret');
-      throw new Error(error.error || 'Failed to interpret emotion');
+      try {
+        const error = await response.json();
+        analytics.trackError(error.error || 'Interpretation failed', 'interpret');
+        throw new Error(error.error || 'Failed to interpret emotion');
+      } catch (e) {
+        analytics.trackError('Interpretation failed', 'interpret');
+        throw new Error(`Failed to interpret emotion: ${response.statusText || 'Unknown error'}`);
+      }
     }
 
     const data = await response.json();
@@ -54,7 +59,12 @@ export async function createShare(
   });
 
   if (!response.ok) {
-    throw new Error('Failed to create share link');
+    try {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create share link');
+    } catch (e) {
+      throw new Error(`Failed to create share link: ${response.statusText || 'Unknown error'}`);
+    }
   }
 
   const data = await response.json();
@@ -95,16 +105,65 @@ export async function getGallery(
   limit = 20,
   offset = 0
 ): Promise<{ items: GalleryItem[]; total: number }> {
-  const response = await fetch(
-    `${API_URL}/api/gallery?sort=${sort}&limit=${limit}&offset=${offset}`
-  );
+  if (USE_PROXY) {
+    // Use backend API
+    const response = await fetch(
+      `${API_URL}/api/gallery?sort=${sort}&limit=${limit}&offset=${offset}`
+    );
 
-  if (!response.ok) {
-    throw new Error('Failed to fetch gallery');
+    if (!response.ok) {
+      try {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch gallery');
+      } catch (e) {
+        throw new Error(`Failed to fetch gallery: ${response.statusText || 'Unknown error'}`);
+      }
+    }
+
+    const data = await response.json();
+    return { items: data.items, total: data.total };
+  } else {
+    // Query Supabase directly
+    const { supabase } = await import('../lib/supabase');
+    
+    let query = supabase
+      .from('shared_visualizations')
+      .select('share_id, input, params, created_at, views, likes')
+      .eq('is_public', true);
+
+    // Sorting
+    if (sort === 'popular') {
+      query = query.order('views', { ascending: false });
+    } else if (sort === 'liked') {
+      query = query.order('likes', { ascending: false });
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+
+    // Pagination
+    query = query.range(offset, offset + limit - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error('Gallery error:', error);
+      throw new Error('Failed to fetch gallery');
+    }
+
+    const items = (data as any[])?.map((item: any) => ({
+      shareId: item.share_id,
+      input: item.input,
+      params: item.params,
+      createdAt: item.created_at,
+      views: item.views,
+      likes: item.likes,
+    })) || [];
+
+    return {
+      items,
+      total: count || 0,
+    };
   }
-
-  const data = await response.json();
-  return { items: data.items, total: data.total };
 }
 
 // ============================================
@@ -158,4 +217,83 @@ export async function clearCloudHistory(token: string): Promise<void> {
       'Authorization': `Bearer ${token}`,
     },
   });
+}
+
+// ============================================
+// PROFILE API
+// ============================================
+export interface ProfileData {
+  username?: string;
+  displayName?: string;
+  bio?: string;
+  avatarUrl?: string;
+  joinedAt?: string;
+  visualizationsCount?: number;
+  followersCount?: number;
+  followingCount?: number;
+}
+
+export async function getProfile(
+  userId?: string,
+  username?: string
+): Promise<ProfileData> {
+  if (!USE_PROXY) {
+    throw new Error('Profile API is not configured. Please set VITE_API_URL.');
+  }
+
+  const params = new URLSearchParams();
+  if (userId) params.append('userId', userId);
+  if (username) params.append('username', username);
+
+  const response = await fetch(`${API_URL}/api/profile?${params}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    try {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch profile');
+    } catch (e) {
+      // If response is not valid JSON, throw a generic error
+      throw new Error(`Failed to fetch profile: ${response.statusText || 'Unknown error'}`);
+    }
+  }
+
+  const data = await response.json();
+  return data.profile;
+}
+
+export async function updateProfile(
+  token: string,
+  updates: {
+    username?: string | null;
+    displayName?: string | null;
+    bio?: string | null;
+  }
+): Promise<void> {
+  if (!USE_PROXY) {
+    throw new Error('Profile API is not configured. Please set VITE_API_URL.');
+  }
+
+  const response = await fetch(`${API_URL}/api/profile`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(updates),
+  });
+
+  if (!response.ok) {
+    try {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update profile');
+    } catch (e) {
+      // If response is not valid JSON, throw a generic error
+      throw new Error(`Failed to update profile: ${response.statusText || 'Unknown error'}`);
+    }
+  }
+
+  analytics.track('profile_updated', updates);
 }
