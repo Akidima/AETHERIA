@@ -7,27 +7,126 @@
   "background_color": "#050505",
   "theme_color": "#050505",
   "orientation": "any",
+  "scope": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
-  "categories": ["art", "entertainment", "lifestyle"],
-  "screenshots": [],
+  "categories": ["art", "entertainment", "lifestyle", "health"],
+  "screenshots": [
+    {
+      "src": "/screenshots/mobile-home.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Aetheria home screen on mobile"
+    },
+    {
+      "src": "/screenshots/desktop-home.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Aetheria visualization on desktop"
+    }
+  ],
   "shortcuts": [
     {
       "name": "New Emotion",
-      "url": "/",
-      "description": "Express a new emotion"
+      "short_name": "Express",
+      "url": "/?action=express",
+      "description": "Express a new emotion",
+      "icons": [{ "src": "/icons/shortcut-express.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Daily Check-in",
+      "short_name": "Check-in",
+      "url": "/?action=checkin",
+      "description": "Complete your daily mood check-in",
+      "icons": [{ "src": "/icons/shortcut-checkin.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Journal",
+      "short_name": "Journal",
+      "url": "/?action=journal",
+      "description": "Open emotional journal",
+      "icons": [{ "src": "/icons/shortcut-journal.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Breathing",
+      "short_name": "Breathe",
+      "url": "/?action=breathe",
+      "description": "Start a breathing exercise",
+      "icons": [{ "src": "/icons/shortcut-breathe.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Wellness Tools",
+      "short_name": "Wellness",
+      "url": "/?action=wellness",
+      "description": "Open sleep, routines, gratitude, affirmations, and PMR",
+      "icons": [{ "src": "/icons/shortcut-wellness.png", "sizes": "96x96" }]
+    }
+  ],
+  "share_target": {
+    "action": "/?action=share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "handle_links": "preferred",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "widgets": [
+    {
+      "name": "Emotional State",
+      "short_name": "Mood",
+      "description": "Shows your current emotional state visualization",
+      "tag": "emotional-state",
+      "ms_ac_template": "widget/emotional-state.json",
+      "data": "/api/widget/emotional-state",
+      "type": "application/json",
+      "screenshots": [],
+      "icons": [
+        { "src": "/icons/widget-mood.png", "sizes": "64x64" }
+      ],
+      "backgrounds": [
+        { "src": "/icons/widget-bg.png", "sizes": "300x200" }
+      ]
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+aetheria",
+      "url": "/?emotion=%s"
     }
   ]
 }

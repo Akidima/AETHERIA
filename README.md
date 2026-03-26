@@ -33,12 +33,24 @@ Think of it as a **digital mood lamp meets emotion diary** — but exponentially
 - Daily emotional check-ins with streak tracking
 - Emotion timeline to track your mood patterns over time
 - Personalized affirmations based on your emotional state
+- Wellness Tools hub with sleep stories and calming visual presets
+- Morning/evening guided routine flows
+- Community gratitude wall for shared positivity
+- Affirmation creator with user-authored and AI-suggested prompts
+- Progressive muscle relaxation step-by-step guides
 
 **🎵 Interactive Experiences**
 - Music-reactive mode — visualizations dance to your music
+- Synesthesia mode — ambient/environmental sound translated into visual emotion states
 - AR mode — bring your emotions into the real world via your phone camera
 - Voice input support for hands-free interaction
 - Ambient mode for passive, evolving background art
+
+**🧠 Unique Differentiators**
+- Group therapy sessions with therapist-moderated collab rooms
+- Emotional weather forecast that predicts near-term mood from check-in patterns
+- Emotion time capsules with scheduled future delivery of past reflections
+- AI art style transfer to reinterpret emotions as styles like Van Gogh or Cyberpunk
 
 **👥 Social & Sharing**
 - Community gallery to share your favorite visualizations

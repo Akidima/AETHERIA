@@ -7,60 +7,70 @@
     <meta name="theme-color" content="#050505">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Aetheria">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-TileColor" content="#050505">
+    <meta name="msapplication-tap-highlight" content="no">
     <title>Aetheria | Digital Sentience</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/icon-192.png">
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/index.css">
     <style>
       body {
         background-color: #050505;
         color: #f0f0f0;
-        font-family: 'Inter', sans-serif;
         overflow-x: hidden;
-        cursor: none; /* Custom cursor handling */
-      }
-      h1, h2, h3, .font-display {
-        font-family: 'Syne', sans-serif;
-      }
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
+        cursor: none;
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
-    "framer-motion": "https://esm.sh/framer-motion@11.11.17?external=react,react-dom",
-    "react": "https://esm.sh/react@18.3.1",
-    "react/": "https://esm.sh/react@18.3.1/",
-    "three": "https://esm.sh/three@0.171.0",
-    "@react-three/fiber": "https://esm.sh/@react-three/fiber@8.17.10?external=react,react-dom,three",
-    "@react-three/drei": "https://esm.sh/@react-three/drei@9.117.0?external=react,react-dom,three,@react-three/fiber",
-    "lucide-react": "https://esm.sh/lucide-react@0.454.0?external=react,react-dom",
-    "react-dom": "https://esm.sh/react-dom@18.3.1",
-    "react-dom/": "https://esm.sh/react-dom@18.3.1/"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
   <script>
-    // Register service worker for PWA
+    // Register service worker for PWA with enhanced features
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('SW registered'))
-          .catch(err => console.log('SW registration failed'));
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then(reg => {
+            console.log('SW registered:', reg.scope);
+            
+            // Check for updates
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // New update available
+                    console.log('New SW update available');
+                    if (window.confirm('A new version of Aetheria is available. Refresh to update?')) {
+                      newWorker.postMessage({ type: 'skip-waiting' });
+                      window.location.reload();
+                    }
+                  }
+                });
+              }
+            });
+
+            // Register periodic background sync for reminders
+            if ('periodicSync' in reg) {
+              reg.periodicSync.register('checkin-reminder', {
+                minInterval: 24 * 60 * 60 * 1000,
+              }).catch(err => console.log('Periodic sync not available:', err));
+            }
+          })
+          .catch(err => console.log('SW registration failed:', err));
+
+        // Listen for messages from service worker
+        navigator.serviceWorker.addEventListener('message', event => {
+          if (event.data?.type === 'sync-complete') {
+            console.log('Background sync complete');
+          }
+        });
       });
     }
   </script>

@@ -213,6 +213,67 @@ export interface DailyCheckIn {
   createdAt: number;
 }
 
+// Integration ecosystem
+export type IntegrationProvider =
+  | 'google-calendar'
+  | 'apple-calendar'
+  | 'spotify'
+  | 'apple-music'
+  | 'apple-watch'
+  | 'fitbit'
+  | 'betterhelp'
+  | 'talkspace'
+  | 'weather';
+
+export interface IntegrationConnections {
+  calendar: 'google-calendar' | 'apple-calendar' | null;
+  music: 'spotify' | 'apple-music' | null;
+  wearable: 'apple-watch' | 'fitbit' | null;
+  therapy: ('betterhelp' | 'talkspace')[];
+  weather: boolean;
+}
+
+export interface CalendarEvent {
+  id: string;
+  date: string; // YYYY-MM-DD
+  title: string;
+}
+
+export interface MoodEventCorrelation {
+  date: string;
+  mood: number;
+  events: CalendarEvent[];
+}
+
+export interface WearableSample {
+  id: string;
+  source: 'apple-watch' | 'fitbit';
+  heartRate: number;
+  recordedAt: string;
+}
+
+export interface WearableMoodCorrelation {
+  date: string;
+  mood: number;
+  averageHeartRate: number;
+  sampleCount: number;
+}
+
+export interface MusicMoodMatch {
+  provider: 'spotify' | 'apple-music';
+  moodLabel: string;
+  query: string;
+  url: string;
+}
+
+export interface WeatherMoodPoint {
+  date: string;
+  mood: number;
+  temperatureC: number | null;
+  precipitationMm: number | null;
+  weatherCode: number | null;
+}
+
 // Emotion Insights
 export interface EmotionInsights {
   period: 'week' | 'month' | 'year';
@@ -224,6 +285,34 @@ export interface EmotionInsights {
   longestStreak: number;
   moodByDay: { date: string; mood: number }[];
   colorUsage: { color: string; count: number }[];
+}
+
+export interface EmotionalForecastDay {
+  date: string;
+  predictedMood: number;
+  confidence: number;
+  weather: string;
+  insight: string;
+}
+
+export interface EmotionalForecast {
+  summary: string;
+  days: EmotionalForecastDay[];
+}
+
+export interface EmotionTimeCapsule {
+  id: string;
+  title: string;
+  reflection: string;
+  createdAt: number;
+  unlockAt: number;
+  delivered: boolean;
+  snapshot: VisualParams;
+}
+
+export interface ArtStyleTransferResult {
+  params: VisualParams;
+  stylePrompt: string;
 }
 
 // Follow relationship
@@ -1165,6 +1254,37 @@ export const LEADERBOARD_AVATARS = [
   '🌟', '🔮', '🌊', '🔥', '🌙', '⚡', '🦋', '🌸',
   '🎭', '🧘', '💎', '🌈', '🪷', '🫧', '✨', '🌿',
 ];
+
+// ============================================================================
+// AI Companion Types
+// ============================================================================
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: number;
+  sentiment?: string;
+  visualParams?: VisualParams;
+}
+
+export interface Conversation {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+  createdAt: number;
+  updatedAt: number;
+  emotionSummary?: string;
+}
+
+export interface CompanionSettings {
+  personality: 'empathetic' | 'coaching' | 'reflective' | 'playful';
+  enableVisualization: boolean;
+  enableMemory: boolean;
+  maxMemoryConversations: number;
+}
+
+export type ConversationMode = 'chat' | 'check-in' | 'reframe' | 'coaching';
 
 // Journal template definitions
 export const JOURNAL_TEMPLATES: JournalTemplate[] = [

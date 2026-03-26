@@ -2,9 +2,8 @@
 // This hides the API key from the client and adds rate limiting
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, checkRateLimit, getClientIp } from './_lib/security';
 
-// Rate limiting state (in production, use Redis or similar)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT = 20; // requests per minute
 const RATE_WINDOW = 60 * 1000; // 1 minute
 
@@ -30,23 +29,6 @@ const AI_PROVIDERS = {
 
 type Provider = keyof typeof AI_PROVIDERS;
 
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = rateLimitMap.get(ip);
-
-  if (!record || now > record.resetTime) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_WINDOW });
-    return true;
-  }
-
-  if (record.count >= RATE_LIMIT) {
-    return false;
-  }
-
-  record.count++;
-  return true;
-}
-
 function getSystemPrompt(): string {
   return `You are a compassionate emotional wellness guide and creative visual artist. You interpret human emotions into abstract visual parameters and provide thoughtful, personalized advice. Always respond with valid JSON only, no markdown or explanation outside the JSON.`;
 }
@@ -68,10 +50,7 @@ Respond with only the JSON object, no other text.`;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  applyCors(req, res, 'POST, OPTIONS', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -82,8 +61,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Rate limiting
-  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || 'unknown';
-  if (!checkRateLimit(ip)) {
+  const ip = getClientIp(req);
+  if (!checkRateLimit(`interpret:${ip}`, RATE_LIMIT, RATE_WINDOW)) {
     return res.status(429).json({ error: 'Rate limit exceeded. Please try again later.' });
   }
 

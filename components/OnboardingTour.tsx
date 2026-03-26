@@ -221,26 +221,5 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ onComplete }) =>
   );
 };
 
-// Hook to trigger onboarding
-export function useOnboarding() {
-  const [showOnboarding, setShowOnboarding] = useState(false);
-
-  useEffect(() => {
-    const completed = localStorage.getItem(STORAGE_KEY);
-    if (!completed) {
-      setShowOnboarding(true);
-    }
-  }, []);
-
-  const resetOnboarding = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    setShowOnboarding(true);
-  }, []);
-
-  const completeOnboarding = useCallback(() => {
-    localStorage.setItem(STORAGE_KEY, 'true');
-    setShowOnboarding(false);
-  }, []);
-
-  return { showOnboarding, resetOnboarding, completeOnboarding };
-}
+// useOnboarding hook has been extracted to hooks/useOnboarding.ts for lazy-loading support
+export { useOnboarding } from '../hooks/useOnboarding';

@@ -1,7 +1,7 @@
 // Collaborative Room Component - Real-time shared sessions
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Users, Copy, Check, Plus, Globe, Lock, Trash2, Play, ExternalLink } from 'lucide-react';
+import { X, Users, Copy, Check, Plus, Globe, Lock, Trash2, Play, ExternalLink, HeartHandshake } from 'lucide-react';
 import { VisualParams, VisualMode } from '../types';
 
 interface CollabRoomProps {
@@ -10,6 +10,7 @@ interface CollabRoomProps {
   currentParams: VisualParams;
   currentMode: VisualMode;
   userId?: string;
+  accessToken?: string;
   onJoinRoom?: (params: VisualParams, mode: VisualMode) => void;
 }
 
@@ -30,6 +31,7 @@ export const CollabRoom: React.FC<CollabRoomProps> = ({
   currentParams,
   currentMode,
   userId,
+  accessToken,
   onJoinRoom,
 }) => {
   const [view, setView] = useState<'list' | 'create' | 'join'>('list');
@@ -42,6 +44,8 @@ export const CollabRoom: React.FC<CollabRoomProps> = ({
   // Create form state
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomPublic, setNewRoomPublic] = useState(true);
+  const [newRoomTherapy, setNewRoomTherapy] = useState(false);
+  const [therapistName, setTherapistName] = useState('');
   const [creating, setCreating] = useState(false);
 
   // Fetch rooms
@@ -52,9 +56,9 @@ export const CollabRoom: React.FC<CollabRoomProps> = ({
       setLoading(true);
       try {
         // Fetch user's rooms
-        if (userId) {
+        if (accessToken) {
           const res = await fetch('/api/collab', {
-            headers: { Authorization: `Bearer ${userId}` },
+            headers: { Authorization: `Bearer ${accessToken}` },
           });
           const data = await res.json();
           if (data.rooms) setRooms(data.rooms);
@@ -72,10 +76,15 @@ export const CollabRoom: React.FC<CollabRoomProps> = ({
     };
 
     fetchRooms();
-  }, [isOpen, userId]);
+  }, [isOpen, userId, accessToken]);
 
   const handleCreateRoom = useCallback(async () => {
-    if (!newRoomName.trim() || !userId) return;
+    if (!newRoomName.trim() || !accessToken) return;
+
+    const normalizedTherapist = therapistName.trim() || 'Licensed Therapist';
+    const finalName = newRoomTherapy
+      ? `[THERAPY] ${normalizedTherapist} · ${newRoomName.trim()}`
+      : newRoomName.trim();
 
     setCreating(true);
     try {
@@ -83,13 +92,14 @@ export const CollabRoom: React.FC<CollabRoomProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${userId}`,
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          name: newRoomName.trim(),
+          name: finalName,
           params: currentParams,
           visualMode: currentMode,
           isPublic: newRoomPublic,
+          maxParticipants: newRoomTherapy ? 20 : 10,
         }),
       });
 
@@ -97,6 +107,8 @@ export const CollabRoom: React.FC<CollabRoomProps> = ({
         const data = await res.json();
         setRooms(prev => [data.room, ...prev]);
         setNewRoomName('');
+        setNewRoomTherapy(false);
+        setTherapistName('');
         setView('list');
       }
     } catch (error) {
@@ -104,7 +116,7 @@ export const CollabRoom: React.FC<CollabRoomProps> = ({
     } finally {
       setCreating(false);
     }
-  }, [newRoomName, newRoomPublic, currentParams, currentMode, userId]);
+  }, [newRoomName, newRoomPublic, newRoomTherapy, therapistName, currentParams, currentMode, accessToken]);
 
   const handleJoinRoom = useCallback(async (code?: string) => {
     const roomCode = code || joinCode.trim().toUpperCase();
@@ -127,14 +139,14 @@ export const CollabRoom: React.FC<CollabRoomProps> = ({
   }, [joinCode, onJoinRoom, onClose]);
 
   const handleDeleteRoom = useCallback(async (code: string) => {
-    if (!confirm('Delete this room?') || !userId) return;
+    if (!confirm('Delete this room?') || !accessToken) return;
 
     try {
       const res = await fetch('/api/collab', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${userId}`,
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({ code }),
       });
@@ -145,7 +157,7 @@ export const CollabRoom: React.FC<CollabRoomProps> = ({
     } catch (error) {
       console.error('Failed to delete room:', error);
     }
-  }, [userId]);
+  }, [accessToken]);
 
   const copyCode = useCallback((code: string) => {
     navigator.clipboard.writeText(code);
@@ -232,11 +244,13 @@ export const CollabRoom: React.FC<CollabRoomProps> = ({
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {rooms.map((room) => (
-                          <div
-                            key={room.id}
-                            className="flex items-center gap-3 p-3 bg-white/5 rounded-xl"
-                          >
+                        {rooms.map((room) => {
+                          const isTherapyRoom = room.name.startsWith('[THERAPY]');
+                          return (
+                            <div
+                              key={room.id}
+                              className="flex items-center gap-3 p-3 bg-white/5 rounded-xl"
+                            >
                             <div
                               className="w-10 h-10 rounded-lg flex-shrink-0"
                               style={{
@@ -246,12 +260,18 @@ export const CollabRoom: React.FC<CollabRoomProps> = ({
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <p className="font-medium truncate">{room.name}</p>
+                                {isTherapyRoom && (
+                                  <HeartHandshake className="w-3 h-3 text-violet-300" />
+                                )}
                                 {room.is_public ? (
                                   <Globe className="w-3 h-3 text-green-400" />
                                 ) : (
                                   <Lock className="w-3 h-3 text-white/50" />
                                 )}
                               </div>
+                              {isTherapyRoom && (
+                                <p className="text-[10px] text-violet-300/80 font-mono uppercase tracking-widest">Therapist moderated</p>
+                              )}
                               <p className="text-xs text-white/50 font-mono">{room.room_code}</p>
                             </div>
                             <div className="flex items-center gap-1">
@@ -281,8 +301,9 @@ export const CollabRoom: React.FC<CollabRoomProps> = ({
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
-                          </div>
-                        ))}
+                            </div>
+                          );
+                        })}
                       </div>
                     )
                   ) : (
@@ -298,17 +319,20 @@ export const CollabRoom: React.FC<CollabRoomProps> = ({
                         Public Rooms
                       </p>
                       <div className="space-y-2">
-                        {publicRooms.slice(0, 5).map((room) => (
-                          <button
-                            key={room.id}
-                            onClick={() => handleJoinRoom(room.room_code)}
-                            className="w-full flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
-                          >
-                            <Globe className="w-4 h-4 text-green-400" />
-                            <span className="flex-1 text-left truncate">{room.name}</span>
-                            <span className="text-xs text-white/50 font-mono">{room.room_code}</span>
-                          </button>
-                        ))}
+                        {publicRooms.slice(0, 5).map((room) => {
+                          const isTherapyRoom = room.name.startsWith('[THERAPY]');
+                          return (
+                            <button
+                              key={room.id}
+                              onClick={() => handleJoinRoom(room.room_code)}
+                              className="w-full flex items-center gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
+                            >
+                              {isTherapyRoom ? <HeartHandshake className="w-4 h-4 text-violet-300" /> : <Globe className="w-4 h-4 text-green-400" />}
+                              <span className="flex-1 text-left truncate">{room.name}</span>
+                              <span className="text-xs text-white/50 font-mono">{room.room_code}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -402,6 +426,34 @@ export const CollabRoom: React.FC<CollabRoomProps> = ({
                           </div>
                         </div>
                       </button>
+
+                      <button
+                        onClick={() => setNewRoomTherapy(!newRoomTherapy)}
+                        className={`flex items-center justify-between w-full p-4 rounded-xl border transition-colors ${
+                          newRoomTherapy
+                            ? 'border-violet-500/40 bg-violet-500/10'
+                            : 'border-white/10'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <HeartHandshake className={`w-5 h-5 ${newRoomTherapy ? 'text-violet-300' : ''}`} />
+                          <div className="text-left">
+                            <p className="font-medium">Group Therapy Session</p>
+                            <p className="text-xs text-white/50">Therapist-moderated collab room for guided sharing</p>
+                          </div>
+                        </div>
+                      </button>
+
+                      {newRoomTherapy && (
+                        <input
+                          type="text"
+                          value={therapistName}
+                          onChange={(e) => setTherapistName(e.target.value)}
+                          placeholder="Therapist name (optional)"
+                          maxLength={80}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-white/30"
+                        />
+                      )}
 
                       {/* Create Button */}
                       <button

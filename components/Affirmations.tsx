@@ -187,7 +187,7 @@ export const Affirmations: React.FC<AffirmationsProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-200 flex items-center justify-center bg-black/80 backdrop-blur-sm"
           onClick={onClose}
         >
           <motion.div
@@ -205,17 +205,20 @@ export const Affirmations: React.FC<AffirmationsProps> = ({
               </div>
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={() => setShowSaved(!showSaved)}
                   className={`p-2 rounded-lg transition-colors ${
                     showSaved ? 'bg-white/10' : 'hover:bg-white/10'
                   }`}
-                  title="Saved affirmations"
+                  title="View saved affirmations"
                 >
                   <Bookmark className={`w-4 h-4 ${showSaved ? 'fill-current' : ''}`} />
                 </button>
                 <button
+                  type="button"
                   onClick={onClose}
                   className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                  title="Close affirmations"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -241,11 +244,13 @@ export const Affirmations: React.FC<AffirmationsProps> = ({
                           layout
                           className="group flex items-start gap-3 p-3 bg-white/5 rounded-lg"
                         >
-                          <Heart className="w-4 h-4 mt-0.5 text-pink-400 flex-shrink-0" />
+                          <Heart className="w-4 h-4 mt-0.5 text-pink-400 shrink-0" />
                           <p className="flex-1 text-sm">{affirmation.text}</p>
                           <button
+                            type="button"
                             onClick={() => handleRemoveSaved(affirmation.id)}
                             className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all"
+                            title="Remove saved affirmation"
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -258,7 +263,7 @@ export const Affirmations: React.FC<AffirmationsProps> = ({
                 // Current Affirmation View
                 <div className="space-y-6">
                   {/* Affirmation Display */}
-                  <div className="relative min-h-[150px] flex items-center justify-center">
+                  <div className="relative min-h-37.5 flex items-center justify-center">
                     <AnimatePresence mode="wait">
                       {isGenerating ? (
                         <motion.div
@@ -291,8 +296,10 @@ export const Affirmations: React.FC<AffirmationsProps> = ({
                   {/* Actions */}
                   <div className="flex justify-center gap-3">
                     <button
+                      type="button"
                       onClick={generateAffirmation}
                       disabled={isGenerating}
+                      title="Generate a new affirmation"
                       className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50"
                     >
                       <RefreshCw className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />

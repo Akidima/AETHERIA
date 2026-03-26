@@ -1,33 +1,16 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Loader2, X, Mic, MicOff, Download, Share2, Maximize, History, Sparkles, LogIn, Grid, Settings, Wind, Clock, Sliders, Calendar, BarChart3, Users, Bookmark, Video, Code, Heart, Music, Accessibility, HelpCircle, Smartphone, Radio, BookOpen, Trophy, Waves, Crown } from 'lucide-react';
+import { ArrowRight, Loader2, X, Mic, MicOff, Download, Share2, Maximize, History, Sparkles, LogIn, Grid, Settings, Wind, Clock, Sliders, Calendar, BarChart3, Users, Bookmark, Video, Code, Heart, Music, Accessibility, HelpCircle, Smartphone, Radio, BookOpen, Trophy, Waves, Crown, MessageCircle, Bell, Link2, Moon, CloudSun } from 'lucide-react';
 import { CustomCursor } from './components/CustomCursor';
 import { Scene } from './components/Scene';
 import { Navigation } from './components/Navigation';
 import { Footer } from './components/Footer';
-import { SettingsPanel } from './components/SettingsPanel';
-import { Meditation } from './components/Meditation';
-import { EmotionTimeline } from './components/EmotionTimeline';
-import { ManualControls } from './components/ManualControls';
-import { DailyCheckIn, useCheckIns } from './components/DailyCheckIn';
-import { EmotionInsights } from './components/EmotionInsights';
-import { CustomPresets } from './components/CustomPresets';
-import { Collections } from './components/Collections';
-import { FollowSystem } from './components/FollowSystem';
-import { VideoExport } from './components/VideoExport';
-import { EmbedGenerator } from './components/EmbedGenerator';
-import { Affirmations } from './components/Affirmations';
-import { OnboardingTour, useOnboarding } from './components/OnboardingTour';
-import { MusicReactive } from './components/MusicReactive';
-import { AccessibilitySettings } from './components/AccessibilitySettings';
-import { ARMode } from './components/ARMode';
-import { CollabRoom } from './components/CollabRoom';
-import { Journal } from './components/Journal';
-import { GamificationHub, AchievementToast } from './components/GamificationHub';
-import { BreathingExercises } from './components/BreathingExercises';
-import { CommunityLeaderboard } from './components/CommunityLeaderboard';
+import { AchievementToast } from './components/AchievementToast';
+import { useCheckIns } from './hooks/useCheckIns';
+import { useOnboarding } from './hooks/useOnboarding';
 import { interpretSentiment } from './services/aiService';
 import { audioService } from './services/audioService';
+import syncService from './services/syncService';
 import { VisualParams, AppState, VisualMode, CustomPreset, AccessibilitySettings as A11ySettings } from './types';
 import { useAuthStore, useGamificationStore } from './store/useStore';
 import {
@@ -39,12 +22,42 @@ import {
   useVoiceInput,
   useScreenshot,
 } from './hooks/useAppFeatures';
+import { useAppShortcuts, useShareTarget, useViewportHeight } from './hooks/useMobile';
 
-// Lazy load auth components to prevent blank page if Supabase isn't configured
+// Lazy-loaded modal/overlay components — only fetched when opened
 const AuthModal = React.lazy(() => import('./components/AuthModal').then(m => ({ default: m.AuthModal })));
 const ShareModal = React.lazy(() => import('./components/ShareModal').then(m => ({ default: m.ShareModal })));
 const Gallery = React.lazy(() => import('./components/Gallery').then(m => ({ default: m.Gallery })));
 const UserMenu = React.lazy(() => import('./components/UserMenu').then(m => ({ default: m.UserMenu })));
+const SettingsPanel = React.lazy(() => import('./components/SettingsPanel').then(m => ({ default: m.SettingsPanel })));
+const Meditation = React.lazy(() => import('./components/Meditation').then(m => ({ default: m.Meditation })));
+const EmotionTimeline = React.lazy(() => import('./components/EmotionTimeline').then(m => ({ default: m.EmotionTimeline })));
+const ManualControls = React.lazy(() => import('./components/ManualControls').then(m => ({ default: m.ManualControls })));
+const DailyCheckIn = React.lazy(() => import('./components/DailyCheckIn').then(m => ({ default: m.DailyCheckIn })));
+const EmotionInsights = React.lazy(() => import('./components/EmotionInsights').then(m => ({ default: m.EmotionInsights })));
+const CustomPresets = React.lazy(() => import('./components/CustomPresets').then(m => ({ default: m.CustomPresets })));
+const Collections = React.lazy(() => import('./components/Collections').then(m => ({ default: m.Collections })));
+const FollowSystem = React.lazy(() => import('./components/FollowSystem').then(m => ({ default: m.FollowSystem })));
+const VideoExport = React.lazy(() => import('./components/VideoExport').then(m => ({ default: m.VideoExport })));
+const EmbedGenerator = React.lazy(() => import('./components/EmbedGenerator').then(m => ({ default: m.EmbedGenerator })));
+const Affirmations = React.lazy(() => import('./components/Affirmations').then(m => ({ default: m.Affirmations })));
+const OnboardingTour = React.lazy(() => import('./components/OnboardingTour').then(m => ({ default: m.OnboardingTour })));
+const MusicReactive = React.lazy(() => import('./components/MusicReactive').then(m => ({ default: m.MusicReactive })));
+const AccessibilitySettings = React.lazy(() => import('./components/AccessibilitySettings').then(m => ({ default: m.AccessibilitySettings })));
+const ARMode = React.lazy(() => import('./components/ARMode').then(m => ({ default: m.ARMode })));
+const CollabRoom = React.lazy(() => import('./components/CollabRoom').then(m => ({ default: m.CollabRoom })));
+const Journal = React.lazy(() => import('./components/Journal').then(m => ({ default: m.Journal })));
+const GamificationHub = React.lazy(() => import('./components/GamificationHub').then(m => ({ default: m.GamificationHub })));
+const BreathingExercises = React.lazy(() => import('./components/BreathingExercises').then(m => ({ default: m.BreathingExercises })));
+const CommunityLeaderboard = React.lazy(() => import('./components/CommunityLeaderboard').then(m => ({ default: m.CommunityLeaderboard })));
+const AICompanion = React.lazy(() => import('./components/AICompanion').then(m => ({ default: m.AICompanion })));
+const IntegrationEcosystem = React.lazy(() => import('./components/IntegrationEcosystem').then(m => ({ default: m.IntegrationEcosystem })));
+const WellnessTools = React.lazy(() => import('./components/WellnessTools').then(m => ({ default: m.WellnessTools })));
+const UniqueDifferentiators = React.lazy(() => import('./components/UniqueDifferentiators').then(m => ({ default: m.UniqueDifferentiators })));
+
+// Mobile/PWA components
+import { InstallPrompt, OfflineIndicator, NotificationPanel, SafeAreaStyles } from './components/MobileShell';
+import { EmotionalWidget } from './components/EmotionalWidget';
 
 // Default initial state
 const INITIAL_PARAMS: VisualParams = {
@@ -66,7 +79,9 @@ const App: React.FC = () => {
 
   // Auth state from store
   const user = useAuthStore((state) => state.user);
+  const authSession = useAuthStore((state) => state.session);
   const setUser = useAuthStore((state) => state.setUser);
+  const setSession = useAuthStore((state) => state.setSession);
   
   // UI state
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
@@ -94,6 +109,11 @@ const App: React.FC = () => {
   const [isGamificationOpen, setGamificationOpen] = useState(false);
   const [isBreathingOpen, setBreathingOpen] = useState(false);
   const [isLeaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [isCompanionOpen, setCompanionOpen] = useState(false);
+  const [isNotificationPanelOpen, setNotificationPanelOpen] = useState(false);
+  const [isIntegrationOpen, setIntegrationOpen] = useState(false);
+  const [isWellnessToolsOpen, setWellnessToolsOpen] = useState(false);
+  const [isUniqueDifferentiatorsOpen, setUniqueDifferentiatorsOpen] = useState(false);
   
   // Accessibility settings
   const [a11ySettings, setA11ySettings] = useState<A11ySettings>({
@@ -109,6 +129,11 @@ const App: React.FC = () => {
   const { checkIns, streak, todayCompleted, addCheckIn } = useCheckIns();
   const { showOnboarding, completeOnboarding } = useOnboarding();
 
+  // Mobile/PWA hooks
+  const { pendingAction, consumeAction } = useAppShortcuts();
+  const { sharedData, consumeSharedData } = useShareTarget();
+  useViewportHeight();
+
   // Gamification
   const {
     recordVisualization,
@@ -122,6 +147,67 @@ const App: React.FC = () => {
   useEffect(() => {
     refreshChallenges();
   }, [refreshChallenges]);
+
+  // Initialize sync service and notifications
+  useEffect(() => {
+    syncService.startAutoSync();
+    
+    // Initialize push notifications
+    import('./services/notificationService').then(({ notificationService }) => {
+      notificationService.initialize();
+    }).catch(() => {});
+
+    return () => {
+      syncService.stopAutoSync();
+    };
+  }, []);
+
+  // Handle app shortcuts (from PWA shortcuts & push notifications)
+  useEffect(() => {
+    if (pendingAction) {
+      const action = consumeAction();
+      switch (action) {
+        case 'checkin':
+          setCheckInOpen(true);
+          break;
+        case 'journal':
+          setJournalOpen(true);
+          break;
+        case 'breathe':
+          setBreathingOpen(true);
+          break;
+        case 'wellness':
+          setWellnessToolsOpen(true);
+          break;
+        case 'insights':
+          setInsightsOpen(true);
+          break;
+        case 'express':
+          inputRef.current?.focus();
+          break;
+        case 'share-target': {
+          const shared = consumeSharedData();
+          if (shared?.text) {
+            setInput(shared.text);
+          }
+          break;
+        }
+      }
+    }
+  }, [pendingAction, consumeAction, consumeSharedData]);
+
+  // Update emotional state for widget when params change
+  useEffect(() => {
+    if (params.phrase !== 'Waiting for Input') {
+      syncService.updateEmotionalState(
+        3, // default mood
+        [],
+        params.color,
+        params.phrase,
+        params
+      );
+    }
+  }, [params]);
 
   // Listen for auth state changes (lazy load supabase)
   useEffect(() => {
@@ -143,6 +229,16 @@ const App: React.FC = () => {
             email: session.user.email,
             user_metadata: session.user.user_metadata || {}
           });
+          setSession({
+            user: {
+              id: session.user.id,
+              email: session.user.email,
+              user_metadata: session.user.user_metadata || {},
+            },
+            access_token: session.access_token,
+          });
+        } else {
+          setSession(null);
         }
 
         // Listen for changes
@@ -153,8 +249,17 @@ const App: React.FC = () => {
               email: session.user.email,
               user_metadata: session.user.user_metadata || {}
             });
+            setSession({
+              user: {
+                id: session.user.id,
+                email: session.user.email,
+                user_metadata: session.user.user_metadata || {},
+              },
+              access_token: session.access_token,
+            });
           } else {
             setUser(null);
+            setSession(null);
           }
         });
         subscription = data.subscription;
@@ -169,6 +274,25 @@ const App: React.FC = () => {
       subscription?.unsubscribe();
     };
   }, []);
+
+  // Provide Supabase access token to the service worker for authenticated background sync.
+  useEffect(() => {
+    const token = authSession?.access_token;
+
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+
+    navigator.serviceWorker.ready
+      .then((registration) => {
+        const message = token
+          ? { type: 'set-auth-token', token }
+          : { type: 'clear-auth-token' };
+
+        registration.active?.postMessage(message);
+        navigator.serviceWorker.controller?.postMessage(message);
+      })
+      .catch(() => {});
+  }, [authSession?.access_token]);
+
   const { isFullscreen, toggleFullscreen } = useFullscreen();
   const { capture, download, share } = useScreenshot();
 
@@ -360,7 +484,9 @@ const App: React.FC = () => {
   };
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-[var(--theme-background)] text-[var(--theme-text-primary)] selection:bg-[var(--theme-text-primary)] selection:text-[var(--theme-background)]">
+    <main className="relative w-screen h-screen overflow-hidden bg-[var(--theme-background)] text-[var(--theme-text-primary)] selection:bg-[var(--theme-text-primary)] selection:text-(--theme-background)">
+      <SafeAreaStyles />
+      <OfflineIndicator />
       <CustomCursor />
       
       {/* Auth/User Section - Top Right */}
@@ -394,6 +520,8 @@ const App: React.FC = () => {
         }}
         onOpenJournal={() => setJournalOpen(true)}
         onOpenGamification={() => setGamificationOpen(true)}
+        onOpenWellness={() => setWellnessToolsOpen(true)}
+        onOpenUnique={() => setUniqueDifferentiatorsOpen(true)}
       />
       
       {/* 3D Background */}
@@ -418,225 +546,298 @@ const App: React.FC = () => {
               initial={{ opacity: 0, scale: 0.9, y: -10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: -10 }}
-              className="flex flex-col gap-2 max-h-[calc(100vh-120px)] overflow-y-auto"
+              className="grid grid-cols-4 gap-1.5 p-3 rounded-2xl bg-black/70 backdrop-blur-xl border border-white/10 max-h-[calc(100vh-140px)] overflow-y-auto"
             >
               {/* Fullscreen */}
               <button
                 onClick={toggleFullscreen}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Fullscreen [F]"
               >
                 <Maximize className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Full</span>
               </button>
 
               {/* Download Screenshot */}
               <button
                 onClick={() => download(`aetheria-${Date.now()}.png`)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Download Screenshot [S]"
               >
                 <Download className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Save</span>
               </button>
 
               {/* Share */}
               <button
                 onClick={handleShare}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Share"
               >
                 <Share2 className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Share</span>
               </button>
 
               {/* History */}
               <button
                 onClick={() => setShowHistory(!showHistory)}
-                className={`p-2 rounded-full border transition-colors bg-black/50 backdrop-blur-sm ${showHistory ? 'border-white/50' : 'border-white/10 hover:border-white/30'}`}
+                className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border transition-all ${showHistory ? 'border-white/50 bg-white/10' : 'border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent'}`}
                 title="History"
               >
                 <History className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">History</span>
               </button>
 
               {/* Ambient Mode */}
               <button
                 onClick={toggleAmbientMode}
-                className={`p-2 rounded-full border transition-colors bg-black/50 backdrop-blur-sm ${settings.ambientMode ? 'border-purple-500 text-purple-400' : 'border-white/10 hover:border-white/30'}`}
+                className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border transition-all ${settings.ambientMode ? 'border-purple-500 text-purple-400 bg-purple-500/10' : 'border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent'}`}
                 title="Ambient Mode"
               >
                 <Sparkles className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Ambient</span>
               </button>
 
               {/* Gallery */}
               <button
                 onClick={() => setGalleryOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Community Gallery"
               >
                 <Grid className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Gallery</span>
               </button>
 
               {/* Timeline */}
               <button
                 onClick={() => setTimelineOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Emotion Timeline"
               >
                 <Clock className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Timeline</span>
               </button>
 
               {/* Meditation */}
               <button
                 onClick={() => setMeditationOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Guided Meditation"
               >
                 <Wind className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Meditate</span>
+              </button>
+
+              {/* Wellness Tools */}
+              <button
+                onClick={() => setWellnessToolsOpen(true)}
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-indigo-500/40 hover:bg-indigo-500/5 bg-transparent transition-all"
+                title="Wellness Tools"
+              >
+                <Moon className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Wellness</span>
+              </button>
+
+              <button
+                onClick={() => setUniqueDifferentiatorsOpen(true)}
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-cyan-500/40 hover:bg-cyan-500/5 bg-transparent transition-all"
+                title="Unique Differentiators"
+              >
+                <CloudSun className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Unique</span>
               </button>
 
               {/* Breathing Exercises */}
               <button
                 onClick={() => setBreathingOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Breathing & Grounding"
               >
                 <Waves className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Breathe</span>
               </button>
 
               {/* Settings */}
               <button
                 onClick={() => setSettingsOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Settings"
               >
                 <Settings className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Settings</span>
               </button>
 
               {/* Manual Controls */}
               <button
                 onClick={() => setManualControlsOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Manual Controls"
                 data-tour="controls"
               >
                 <Sliders className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Controls</span>
               </button>
 
               {/* Daily Check-in */}
               <button
                 onClick={() => setCheckInOpen(true)}
-                className={`p-2 rounded-full border transition-colors bg-black/50 backdrop-blur-sm ${
-                  !todayCompleted ? 'border-orange-500/50 text-orange-400' : 'border-white/10 hover:border-white/30'
+                className={`flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border transition-all ${
+                  !todayCompleted ? 'border-orange-500/50 text-orange-400 bg-orange-500/5' : 'border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent'
                 }`}
                 title={todayCompleted ? 'Daily Check-in Complete' : 'Daily Check-in'}
               >
                 <Calendar className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Check-in</span>
               </button>
 
               {/* Insights */}
               <button
                 onClick={() => setInsightsOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Emotion Insights"
               >
                 <BarChart3 className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Insights</span>
               </button>
 
               {/* Presets */}
               <button
                 onClick={() => setPresetsOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Custom Presets"
               >
                 <Bookmark className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Presets</span>
               </button>
 
               {/* Video Export */}
               <button
                 onClick={() => setVideoExportOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Export Video"
               >
                 <Video className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Video</span>
               </button>
 
               {/* Music Reactive */}
               <button
                 onClick={() => setMusicReactiveOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Music Reactive"
               >
                 <Music className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Music</span>
               </button>
 
               {/* Affirmations */}
               <button
                 onClick={() => setAffirmationsOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Affirmations"
               >
                 <Heart className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Affirm</span>
               </button>
 
               {/* Community */}
               <button
                 onClick={() => setFollowSystemOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Community"
               >
                 <Users className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Social</span>
               </button>
 
               {/* Accessibility */}
               <button
                 onClick={() => setAccessibilityOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Accessibility"
               >
                 <Accessibility className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">A11y</span>
               </button>
 
               {/* AR Mode */}
               <button
                 onClick={() => setARModeOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="AR Mode"
               >
                 <Smartphone className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">AR</span>
               </button>
 
               {/* Collab Room */}
               <button
                 onClick={() => setCollabRoomOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Collab Rooms"
               >
                 <Radio className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Collab</span>
               </button>
 
               {/* Journal */}
               <button
                 onClick={() => setJournalOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-white/30 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 bg-transparent transition-all"
                 title="Journal"
               >
                 <BookOpen className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Journal</span>
               </button>
 
               {/* Gamification Hub */}
               <button
                 onClick={() => setGamificationOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-yellow-500/40 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-yellow-500/40 hover:bg-yellow-500/5 bg-transparent transition-all"
                 title="Achievements & Progress"
               >
                 <Trophy className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Trophy</span>
               </button>
 
               {/* Community Leaderboard */}
               <button
                 onClick={() => setLeaderboardOpen(true)}
-                className="p-2 rounded-full border border-white/10 hover:border-amber-500/40 bg-black/50 backdrop-blur-sm transition-colors"
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-amber-500/40 hover:bg-amber-500/5 bg-transparent transition-all"
                 title="Community Leaderboard"
               >
                 <Crown className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Ranks</span>
+              </button>
+
+              {/* AI Companion */}
+              <button
+                onClick={() => setCompanionOpen(true)}
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-violet-500/40 hover:bg-violet-500/5 bg-transparent transition-all"
+                title="AI Companion"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">AI Chat</span>
+              </button>
+
+              {/* Notifications */}
+              <button
+                onClick={() => setNotificationPanelOpen(true)}
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-blue-500/40 hover:bg-blue-500/5 bg-transparent transition-all"
+                title="Notification Settings"
+              >
+                <Bell className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Alerts</span>
+              </button>
+
+              {/* Integration Ecosystem */}
+              <button
+                onClick={() => setIntegrationOpen(true)}
+                className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-xl border border-white/10 hover:border-emerald-500/40 hover:bg-emerald-500/5 bg-transparent transition-all"
+                title="Integration Ecosystem"
+              >
+                <Link2 className="w-4 h-4" />
+                <span className="text-[9px] text-white/40 font-mono leading-none">Integrate</span>
               </button>
             </motion.div>
           )}
@@ -897,222 +1098,334 @@ const App: React.FC = () => {
         )}
       </React.Suspense>
 
-      {/* Settings Panel */}
-      <SettingsPanel
-        isOpen={isSettingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        soundEnabled={settings.soundEnabled}
-        onToggleSound={toggleSound}
-        visualMode={settings.visualMode}
-        onVisualModeChange={(mode) => updateSettings({ visualMode: mode })}
-      />
+      {/* Lazy-loaded modal components — wrapped in Suspense */}
+      <Suspense fallback={null}>
+        {/* Settings Panel */}
+        {isSettingsOpen && (
+          <SettingsPanel
+            isOpen={isSettingsOpen}
+            onClose={() => setSettingsOpen(false)}
+            soundEnabled={settings.soundEnabled}
+            onToggleSound={toggleSound}
+            visualMode={settings.visualMode}
+            onVisualModeChange={(mode) => updateSettings({ visualMode: mode })}
+          />
+        )}
 
-      {/* Meditation */}
-      <Meditation
-        isOpen={isMeditationOpen}
-        onClose={() => setMeditationOpen(false)}
-        onParamsChange={setParams}
-        soundEnabled={settings.soundEnabled}
-        onToggleSound={toggleSound}
-      />
+        {/* Meditation */}
+        {isMeditationOpen && (
+          <Meditation
+            isOpen={isMeditationOpen}
+            onClose={() => setMeditationOpen(false)}
+            onParamsChange={setParams}
+            soundEnabled={settings.soundEnabled}
+            onToggleSound={toggleSound}
+          />
+        )}
 
-      {/* Emotion Timeline */}
-      <EmotionTimeline
-        isOpen={isTimelineOpen}
-        onClose={() => setTimelineOpen(false)}
-        history={history}
-        onSelectEntry={(p) => {
-          setParams(p);
-          if (settings.soundEnabled) {
-            audioService.start(p.color, p.speed, p.distort);
-          }
-        }}
-      />
+        {/* Emotion Timeline */}
+        {isTimelineOpen && (
+          <EmotionTimeline
+            isOpen={isTimelineOpen}
+            onClose={() => setTimelineOpen(false)}
+            history={history}
+            onSelectEntry={(p) => {
+              setParams(p);
+              if (settings.soundEnabled) {
+                audioService.start(p.color, p.speed, p.distort);
+              }
+            }}
+          />
+        )}
 
-      {/* Manual Controls */}
-      <ManualControls
-        isOpen={isManualControlsOpen}
-        onClose={() => setManualControlsOpen(false)}
-        params={params}
-        onParamsChange={(newParams) => {
-          setParams(newParams);
-          if (settings.soundEnabled) {
-            audioService.update(newParams.color, newParams.speed, newParams.distort);
-          }
-        }}
-        visualMode={settings.visualMode}
-      />
+        {/* Manual Controls */}
+        {isManualControlsOpen && (
+          <ManualControls
+            isOpen={isManualControlsOpen}
+            onClose={() => setManualControlsOpen(false)}
+            params={params}
+            onParamsChange={(newParams) => {
+              setParams(newParams);
+              if (settings.soundEnabled) {
+                audioService.update(newParams.color, newParams.speed, newParams.distort);
+              }
+            }}
+            visualMode={settings.visualMode}
+          />
+        )}
 
-      {/* Daily Check-in */}
-      <DailyCheckIn
-        isOpen={isCheckInOpen}
-        onClose={() => setCheckInOpen(false)}
-        onComplete={(checkIn) => {
-          addCheckIn(checkIn);
-          recordCheckIn(checkIn.emotions, streak + 1);
-        }}
-        onVisualize={(p) => {
-          setParams(p);
-          if (settings.soundEnabled) {
-            audioService.start(p.color, p.speed, p.distort);
-          }
-        }}
-        streak={streak}
-        todayCompleted={todayCompleted}
-      />
+        {/* Daily Check-in */}
+        {isCheckInOpen && (
+          <DailyCheckIn
+            isOpen={isCheckInOpen}
+            onClose={() => setCheckInOpen(false)}
+            onComplete={(checkIn) => {
+              addCheckIn(checkIn);
+              recordCheckIn(checkIn.emotions, streak + 1);
+              // Update emotional state for widget
+              if (checkIn.params) {
+                syncService.updateEmotionalState(
+                  checkIn.mood,
+                  checkIn.emotions,
+                  checkIn.params.color,
+                  checkIn.params.phrase,
+                  checkIn.params
+                );
+              }
+              // Offline sync - save check-in for background sync
+              syncService.saveOffline('checkin', {
+                ...checkIn,
+                id: `checkin_${Date.now()}`,
+                createdAt: Date.now(),
+              }, '/api/checkins').catch(() => {});
+              // Streak notification
+              import('./services/notificationService').then(({ notificationService }) => {
+                notificationService.notifyStreak(streak + 1);
+              }).catch(() => {});
+            }}
+            onVisualize={(p) => {
+              setParams(p);
+              if (settings.soundEnabled) {
+                audioService.start(p.color, p.speed, p.distort);
+              }
+            }}
+            streak={streak}
+            todayCompleted={todayCompleted}
+          />
+        )}
 
-      {/* Emotion Insights */}
-      <EmotionInsights
-        isOpen={isInsightsOpen}
-        onClose={() => setInsightsOpen(false)}
-        checkIns={checkIns}
-        streak={streak}
-      />
+        {/* Emotion Insights */}
+        {isInsightsOpen && (
+          <EmotionInsights
+            isOpen={isInsightsOpen}
+            onClose={() => setInsightsOpen(false)}
+            checkIns={checkIns}
+            streak={streak}
+          />
+        )}
 
-      {/* Custom Presets */}
-      <CustomPresets
-        isOpen={isPresetsOpen}
-        onClose={() => setPresetsOpen(false)}
-        onSelect={(preset) => {
-          setParams(preset.params);
-          updateSettings({ visualMode: preset.visualMode });
-          setPresetsOpen(false);
-          if (settings.soundEnabled) {
-            audioService.start(preset.params.color, preset.params.speed, preset.params.distort);
-          }
-        }}
-        currentParams={params}
-        currentMode={settings.visualMode}
-      />
+        {/* Custom Presets */}
+        {isPresetsOpen && (
+          <CustomPresets
+            isOpen={isPresetsOpen}
+            onClose={() => setPresetsOpen(false)}
+            onSelect={(preset) => {
+              setParams(preset.params);
+              updateSettings({ visualMode: preset.visualMode });
+              setPresetsOpen(false);
+              if (settings.soundEnabled) {
+                audioService.start(preset.params.color, preset.params.speed, preset.params.distort);
+              }
+            }}
+            currentParams={params}
+            currentMode={settings.visualMode}
+          />
+        )}
 
-      {/* Collections */}
-      <Collections
-        isOpen={isCollectionsOpen}
-        onClose={() => setCollectionsOpen(false)}
-        onSelectVisualization={(p) => {
-          setParams(p);
-          if (settings.soundEnabled) {
-            audioService.start(p.color, p.speed, p.distort);
-          }
-        }}
-        userId={user?.id}
-      />
+        {/* Collections */}
+        {isCollectionsOpen && (
+          <Collections
+            isOpen={isCollectionsOpen}
+            onClose={() => setCollectionsOpen(false)}
+            onSelectVisualization={(p) => {
+              setParams(p);
+              if (settings.soundEnabled) {
+                audioService.start(p.color, p.speed, p.distort);
+              }
+            }}
+            userId={user?.id}
+          />
+        )}
 
-      {/* Follow System */}
-      <FollowSystem
-        isOpen={isFollowSystemOpen}
-        onClose={() => setFollowSystemOpen(false)}
-        currentUserId={user?.id}
-        onSelectVisualization={(p) => {
-          setParams(p);
-          if (settings.soundEnabled) {
-            audioService.start(p.color, p.speed, p.distort);
-          }
-        }}
-      />
+        {/* Follow System */}
+        {isFollowSystemOpen && (
+          <FollowSystem
+            isOpen={isFollowSystemOpen}
+            onClose={() => setFollowSystemOpen(false)}
+            currentUserId={user?.id}
+            onSelectVisualization={(p) => {
+              setParams(p);
+              if (settings.soundEnabled) {
+                audioService.start(p.color, p.speed, p.distort);
+              }
+            }}
+          />
+        )}
 
-      {/* Video Export */}
-      <VideoExport
-        isOpen={isVideoExportOpen}
-        onClose={() => setVideoExportOpen(false)}
-      />
+        {/* Video Export */}
+        {isVideoExportOpen && (
+          <VideoExport
+            isOpen={isVideoExportOpen}
+            onClose={() => setVideoExportOpen(false)}
+          />
+        )}
 
-      {/* Embed Generator */}
-      <EmbedGenerator
-        isOpen={isEmbedOpen}
-        onClose={() => setEmbedOpen(false)}
-        params={params}
-      />
+        {/* Embed Generator */}
+        {isEmbedOpen && (
+          <EmbedGenerator
+            isOpen={isEmbedOpen}
+            onClose={() => setEmbedOpen(false)}
+            params={params}
+          />
+        )}
 
-      {/* Affirmations */}
-      <Affirmations
-        isOpen={isAffirmationsOpen}
-        onClose={() => setAffirmationsOpen(false)}
-        currentEmotion={params.phrase}
-        currentParams={params}
-      />
+        {/* Affirmations */}
+        {isAffirmationsOpen && (
+          <Affirmations
+            isOpen={isAffirmationsOpen}
+            onClose={() => setAffirmationsOpen(false)}
+            currentEmotion={params.phrase}
+            currentParams={params}
+          />
+        )}
 
-      {/* Music Reactive */}
-      <MusicReactive
-        isOpen={isMusicReactiveOpen}
-        onClose={() => setMusicReactiveOpen(false)}
-        onParamsChange={(newParams) => {
-          setParams(prev => ({ ...prev, ...newParams }));
-          if (settings.soundEnabled && newParams.color) {
-            audioService.update(
-              newParams.color || params.color,
-              newParams.speed || params.speed,
-              newParams.distort || params.distort
-            );
-          }
-        }}
-        currentParams={params}
-      />
+        {/* Music Reactive */}
+        {isMusicReactiveOpen && (
+          <MusicReactive
+            isOpen={isMusicReactiveOpen}
+            onClose={() => setMusicReactiveOpen(false)}
+            onParamsChange={(newParams) => {
+              setParams(prev => ({ ...prev, ...newParams }));
+              if (settings.soundEnabled && newParams.color) {
+                audioService.update(
+                  newParams.color || params.color,
+                  newParams.speed || params.speed,
+                  newParams.distort || params.distort
+                );
+              }
+            }}
+            currentParams={params}
+          />
+        )}
 
-      {/* Accessibility Settings */}
-      <AccessibilitySettings
-        isOpen={isAccessibilityOpen}
-        onClose={() => setAccessibilityOpen(false)}
-        onSettingsChange={setA11ySettings}
-      />
+        {/* Accessibility Settings */}
+        {isAccessibilityOpen && (
+          <AccessibilitySettings
+            isOpen={isAccessibilityOpen}
+            onClose={() => setAccessibilityOpen(false)}
+            onSettingsChange={setA11ySettings}
+          />
+        )}
 
-      {/* AR Mode */}
-      <ARMode
-        isOpen={isARModeOpen}
-        onClose={() => setARModeOpen(false)}
-        params={params}
-      />
+        {/* AR Mode */}
+        {isARModeOpen && (
+          <ARMode
+            isOpen={isARModeOpen}
+            onClose={() => setARModeOpen(false)}
+            params={params}
+          />
+        )}
 
-      {/* Collab Room */}
-      <CollabRoom
-        isOpen={isCollabRoomOpen}
-        onClose={() => setCollabRoomOpen(false)}
-        currentParams={params}
-        currentMode={settings.visualMode}
-        userId={user?.id}
-        onJoinRoom={(p, mode) => {
-          setParams(p);
-          updateSettings({ visualMode: mode });
-          if (settings.soundEnabled) {
-            audioService.start(p.color, p.speed, p.distort);
-          }
-        }}
-      />
+        {/* Collab Room */}
+        {isCollabRoomOpen && (
+          <CollabRoom
+            isOpen={isCollabRoomOpen}
+            onClose={() => setCollabRoomOpen(false)}
+            currentParams={params}
+            currentMode={settings.visualMode}
+            userId={user?.id}
+            accessToken={authSession?.access_token}
+            onJoinRoom={(p, mode) => {
+              setParams(p);
+              updateSettings({ visualMode: mode });
+              if (settings.soundEnabled) {
+                audioService.start(p.color, p.speed, p.distort);
+              }
+            }}
+          />
+        )}
 
-      {/* Journal */}
-      <Journal
-        isOpen={isJournalOpen}
-        onClose={() => setJournalOpen(false)}
-        currentParams={params}
-        currentInput={input}
-        onLoadVisualization={(p) => {
-          setParams(p);
-          if (settings.soundEnabled) {
-            audioService.start(p.color, p.speed, p.distort);
-          }
-        }}
-      />
+        {/* Journal */}
+        {isJournalOpen && (
+          <Journal
+            isOpen={isJournalOpen}
+            onClose={() => setJournalOpen(false)}
+            currentParams={params}
+            currentInput={input}
+            onLoadVisualization={(p) => {
+              setParams(p);
+              if (settings.soundEnabled) {
+                audioService.start(p.color, p.speed, p.distort);
+              }
+            }}
+          />
+        )}
 
-      {/* Gamification Hub */}
-      <GamificationHub
-        isOpen={isGamificationOpen}
-        onClose={() => setGamificationOpen(false)}
-      />
+        {/* Gamification Hub */}
+        {isGamificationOpen && (
+          <GamificationHub
+            isOpen={isGamificationOpen}
+            onClose={() => setGamificationOpen(false)}
+          />
+        )}
 
-      {/* Breathing Exercises */}
-      <BreathingExercises
-        isOpen={isBreathingOpen}
-        onClose={() => setBreathingOpen(false)}
-        onParamsChange={setParams}
-        soundEnabled={settings.soundEnabled}
-        onToggleSound={toggleSound}
-      />
+        {/* Breathing Exercises */}
+        {isBreathingOpen && (
+          <BreathingExercises
+            isOpen={isBreathingOpen}
+            onClose={() => setBreathingOpen(false)}
+            onParamsChange={setParams}
+            soundEnabled={settings.soundEnabled}
+            onToggleSound={toggleSound}
+          />
+        )}
 
-      {/* Community Leaderboard */}
-      <CommunityLeaderboard
-        isOpen={isLeaderboardOpen}
-        onClose={() => setLeaderboardOpen(false)}
-      />
+        {/* Community Leaderboard */}
+        {isLeaderboardOpen && (
+          <CommunityLeaderboard
+            isOpen={isLeaderboardOpen}
+            onClose={() => setLeaderboardOpen(false)}
+          />
+        )}
+
+        {/* AI Companion */}
+        {isCompanionOpen && (
+          <AICompanion
+            isOpen={isCompanionOpen}
+            onClose={() => setCompanionOpen(false)}
+            onParamsChange={setParams}
+            currentParams={params}
+          />
+        )}
+
+        {/* Integration Ecosystem */}
+        {isIntegrationOpen && (
+          <IntegrationEcosystem
+            isOpen={isIntegrationOpen}
+            onClose={() => setIntegrationOpen(false)}
+            checkIns={checkIns}
+          />
+        )}
+
+        {/* Wellness Tools */}
+        {isWellnessToolsOpen && (
+          <WellnessTools
+            isOpen={isWellnessToolsOpen}
+            onClose={() => setWellnessToolsOpen(false)}
+            onApplyVisualization={(nextParams) => {
+              setParams(nextParams);
+              if (settings.soundEnabled) {
+                audioService.start(nextParams.color, nextParams.speed, nextParams.distort);
+              }
+            }}
+          />
+        )}
+
+        {isUniqueDifferentiatorsOpen && (
+          <UniqueDifferentiators
+            isOpen={isUniqueDifferentiatorsOpen}
+            onClose={() => setUniqueDifferentiatorsOpen(false)}
+            checkIns={checkIns}
+            currentParams={params}
+            onApplyVisualization={(nextParams) => {
+              setParams(nextParams);
+              if (settings.soundEnabled) {
+                audioService.start(nextParams.color, nextParams.speed, nextParams.distort);
+              }
+            }}
+          />
+        )}
+      </Suspense>
 
       {/* Achievement Notifications */}
       <AchievementToast
@@ -1120,9 +1433,27 @@ const App: React.FC = () => {
         onDismiss={clearNewAchievements}
       />
 
+      {/* Notification Settings Panel */}
+      {isNotificationPanelOpen && (
+        <NotificationPanel
+          isOpen={isNotificationPanelOpen}
+          onClose={() => setNotificationPanelOpen(false)}
+        />
+      )}
+
+      {/* Emotional State Widget (shown in standalone PWA mode) */}
+      <div className="fixed top-8 left-8 z-[105] hidden standalone:block">
+        <EmotionalWidget compact onExpand={() => setCheckInOpen(true)} />
+      </div>
+
+      {/* PWA Install Prompt */}
+      <InstallPrompt />
+
       {/* Onboarding Tour */}
       {showOnboarding && (
-        <OnboardingTour onComplete={completeOnboarding} />
+        <Suspense fallback={null}>
+          <OnboardingTour onComplete={completeOnboarding} />
+        </Suspense>
       )}
     </main>
   );

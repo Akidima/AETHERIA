@@ -2,7 +2,7 @@
 // @ts-nocheck - Zustand types handled at runtime
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { VisualParams, VisualMode, HistoryEntry, JournalEntry, JournalFilter, GamificationProgress, ActiveChallenge, ACHIEVEMENTS, CHALLENGE_POOL, XP_LEVELS, BreathingSession, BreathingTechnique, BreathingPattern, LeaderboardPrivacySettings, LeaderboardEntry, LeaderboardCategory, LeaderboardPeriod, LEADERBOARD_AVATARS } from '../types';
+import { VisualParams, VisualMode, HistoryEntry, JournalEntry, JournalFilter, GamificationProgress, ActiveChallenge, ACHIEVEMENTS, CHALLENGE_POOL, XP_LEVELS, BreathingSession, BreathingTechnique, BreathingPattern, LeaderboardPrivacySettings, LeaderboardEntry, LeaderboardCategory, LeaderboardPeriod, LEADERBOARD_AVATARS, ChatMessage, Conversation, CompanionSettings } from '../types';
 
 // User type for auth (simplified to avoid dependency issues)
 interface User {
@@ -924,6 +924,120 @@ export const useLeaderboardStore = create<LeaderboardState>()(
     {
       name: 'aetheria-leaderboard',
       partialize: (state) => ({ privacy: state.privacy }),
+    }
+  )
+);
+
+// ============================================================================
+// AI Companion Store
+// ============================================================================
+
+const DEFAULT_COMPANION_SETTINGS: CompanionSettings = {
+  personality: 'empathetic',
+  enableVisualization: true,
+  enableMemory: true,
+  maxMemoryConversations: 5,
+};
+
+interface CompanionState {
+  conversations: Conversation[];
+  activeConversationId: string | null;
+  settings: CompanionSettings;
+  isTyping: boolean;
+
+  createConversation: (title?: string) => string;
+  setActiveConversation: (id: string | null) => void;
+  addMessage: (conversationId: string, message: ChatMessage) => void;
+  updateConversationTitle: (conversationId: string, title: string) => void;
+  deleteConversation: (conversationId: string) => void;
+  getActiveConversation: () => Conversation | undefined;
+  getRecentSummary: () => string;
+  setTyping: (typing: boolean) => void;
+  updateSettings: (settings: Partial<CompanionSettings>) => void;
+}
+
+export const useCompanionStore = create<CompanionState>()(
+  persist(
+    (set, get) => ({
+      conversations: [],
+      activeConversationId: null,
+      settings: DEFAULT_COMPANION_SETTINGS,
+      isTyping: false,
+
+      createConversation: (title?: string) => {
+        const id = `conv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const conversation: Conversation = {
+          id,
+          title: title || 'New conversation',
+          messages: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        set((state) => ({
+          conversations: [conversation, ...state.conversations],
+          activeConversationId: id,
+        }));
+        return id;
+      },
+
+      setActiveConversation: (id) => set({ activeConversationId: id }),
+
+      addMessage: (conversationId, message) => {
+        set((state) => ({
+          conversations: state.conversations.map((conv) =>
+            conv.id === conversationId
+              ? { ...conv, messages: [...conv.messages, message], updatedAt: Date.now() }
+              : conv
+          ),
+        }));
+      },
+
+      updateConversationTitle: (conversationId, title) => {
+        set((state) => ({
+          conversations: state.conversations.map((conv) =>
+            conv.id === conversationId ? { ...conv, title } : conv
+          ),
+        }));
+      },
+
+      deleteConversation: (conversationId) => {
+        set((state) => ({
+          conversations: state.conversations.filter((c) => c.id !== conversationId),
+          activeConversationId:
+            state.activeConversationId === conversationId ? null : state.activeConversationId,
+        }));
+      },
+
+      getActiveConversation: () => {
+        const { conversations, activeConversationId } = get();
+        return conversations.find((c) => c.id === activeConversationId);
+      },
+
+      getRecentSummary: () => {
+        const { conversations, settings } = get();
+        if (!settings.enableMemory) return '';
+        const recent = conversations.slice(0, settings.maxMemoryConversations);
+        if (recent.length === 0) return '';
+        const summaries = recent.map((conv) => {
+          const lastMessages = conv.messages.filter((m) => m.role !== 'system').slice(-3);
+          const preview = lastMessages.map((m) => `${m.role}: ${m.content.slice(0, 80)}`).join(' | ');
+          return `[${conv.title}] ${preview}`;
+        });
+        return `Previous conversations:\n${summaries.join('\n')}`;
+      },
+
+      setTyping: (typing) => set({ isTyping: typing }),
+
+      updateSettings: (partial) => {
+        set((state) => ({ settings: { ...state.settings, ...partial } }));
+      },
+    }),
+    {
+      name: 'aetheria-companion',
+      partialize: (state) => ({
+        conversations: state.conversations,
+        settings: state.settings,
+      }),
     }
   )
 );

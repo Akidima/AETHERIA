@@ -3,18 +3,22 @@ import { Menu, X, ArrowUpRight, ArrowLeft, Github, Twitter, Linkedin, Sparkles, 
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { VisualParams } from '../types';
 
-type SectionType = 'menu' | 'manifesto' | 'archive' | 'credits' | 'journal' | 'gamification' | null;
+type SectionType = 'menu' | 'manifesto' | 'archive' | 'credits' | 'journal' | 'gamification' | 'wellness' | 'unique' | null;
 
 interface NavigationProps {
   onLoadParams?: (params: VisualParams) => void;
   onOpenJournal?: () => void;
   onOpenGamification?: () => void;
+  onOpenWellness?: () => void;
+  onOpenUnique?: () => void;
 }
 
 const NAV_ITEMS: { label: string; section: SectionType }[] = [
   { label: 'Experience', section: null },
   { label: 'Journal', section: 'journal' },
   { label: 'Progress', section: 'gamification' },
+  { label: 'Wellness', section: 'wellness' },
+  { label: 'Unique', section: 'unique' },
   { label: 'Manifesto', section: 'manifesto' },
   { label: 'Archive', section: 'archive' },
   { label: 'Credits', section: 'credits' },
@@ -52,7 +56,7 @@ const CREDITS_DATA = [
   { category: 'Typography', items: ['Syne', 'Inter'] },
 ];
 
-export const Navigation: React.FC<NavigationProps> = ({ onLoadParams, onOpenJournal, onOpenGamification }) => {
+export const Navigation: React.FC<NavigationProps> = ({ onLoadParams, onOpenJournal, onOpenGamification, onOpenWellness, onOpenUnique }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<SectionType>('menu');
 
@@ -71,6 +75,16 @@ export const Navigation: React.FC<NavigationProps> = ({ onLoadParams, onOpenJour
       setIsOpen(false);
       setActiveSection('menu');
       onOpenGamification?.();
+    } else if (section === 'wellness') {
+      // Wellness = close menu and open wellness tools modal
+      setIsOpen(false);
+      setActiveSection('menu');
+      onOpenWellness?.();
+    } else if (section === 'unique') {
+      // Unique = close menu and open unique differentiators modal
+      setIsOpen(false);
+      setActiveSection('menu');
+      onOpenUnique?.();
     } else {
       setActiveSection(section);
     }

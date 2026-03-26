@@ -1,0 +1,65 @@
+{
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "body": [
+    {
+      "type": "ColumnSet",
+      "columns": [
+        {
+          "type": "Column",
+          "width": "auto",
+          "items": [
+            {
+              "type": "TextBlock",
+              "text": "${mood_emoji}",
+              "size": "ExtraLarge"
+            }
+          ]
+        },
+        {
+          "type": "Column",
+          "width": "stretch",
+          "items": [
+            {
+              "type": "TextBlock",
+              "text": "${phrase}",
+              "weight": "Bolder",
+              "size": "Medium",
+              "wrap": true
+            },
+            {
+              "type": "TextBlock",
+              "text": "${emotions}",
+              "size": "Small",
+              "color": "Light",
+              "wrap": true
+            },
+            {
+              "type": "TextBlock",
+              "text": "${last_updated}",
+              "size": "Small",
+              "color": "Light",
+              "isSubtle": true
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.Execute",
+      "title": "Check In",
+      "verb": "open",
+      "data": {
+        "url": "/?action=checkin"
+      }
+    },
+    {
+      "type": "Action.Execute",
+      "title": "Refresh",
+      "verb": "update"
+    }
+  ]
+}
