@@ -21,10 +21,8 @@ const STATIC_ASSETS = [
 // API endpoints to cache for offline
 const CACHEABLE_API_PATTERNS = [
   '/api/gallery',
-  '/api/presets',
   '/api/checkins',
   '/api/profile',
-  '/api/collections',
 ];
 
 // Maximum items in dynamic cache
